@@ -9,10 +9,6 @@ import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.Stroke;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
@@ -28,15 +24,15 @@ import javax.swing.SwingUtilities;
  * 1) เป็น JPanel ที่วาดทุกหน้าจอ
  * 2) เป็น game thread ที่เดินลูป 60 FPS
  * 3) เป็น state machine ของ GameState
- * 4) เป็นตัวรับ Input จากคีย์บอร์ดและเมาส์
+ * 4) อ่าน Input จาก InputHandler แล้วนำไปใช้ในแต่ละเฟรม
  *
  * เรื่อง Thread: Swing ประมวลผล Event ทั้งหมดบน Event Dispatch Thread (EDT)
  * ถ้าเอา game loop ไปวนบน EDT หน้าจอจะค้างเพราะ EDT ไม่ว่างไปวาดภาพ
  * เกมนี้จึงสร้าง thread ของตัวเองหนึ่งเส้นสำหรับ update + repaint
- * ส่วน field ที่ถูกเขียนจาก EDT (ปุ่มที่กด, การคลิก) ประกาศเป็น volatile
+ * ส่วน field ที่ถูกเขียนจาก EDT (ปุ่มที่กด, การคลิก) อยู่ใน InputHandler และเป็น volatile
  * เพื่อให้ game thread มองเห็นค่าล่าสุดเสมอ
  */
-public class Game extends JPanel implements Runnable, KeyListener, MouseListener {
+public class Game extends JPanel implements Runnable {
 
     // ---------- ค่าคงที่ของลูปและหน้าจอ ----------
     private static final int FPS = 60;
@@ -88,15 +84,8 @@ public class Game extends JPanel implements Runnable, KeyListener, MouseListener
     private volatile boolean running;
     private Thread gameThread;
 
-    // ---------- Input ที่ EDT เขียนและ game thread อ่าน ----------
-    private volatile boolean upPressed;
-    private volatile boolean downPressed;
-    private volatile boolean leftPressed;
-    private volatile boolean rightPressed;
-    private volatile boolean attackRequested;
-    private volatile boolean clickPending;
-    private volatile int clickX;
-    private volatile int clickY;
+    // ---------- Input จากคีย์บอร์ดและเมาส์ ----------
+    private final InputHandler input;
 
     // ---------- ไฟล์รูป ฟอนต์ และเสียง ----------
     private final AssetManager assets;
@@ -114,8 +103,9 @@ public class Game extends JPanel implements Runnable, KeyListener, MouseListener
         setPreferredSize(new Dimension(Level.SCREEN_WIDTH, Level.SCREEN_HEIGHT));
         setBackground(Color.BLACK);
         setFocusable(true);
-        addKeyListener(this);
-        addMouseListener(this);
+        input = new InputHandler(this);
+        addKeyListener(input);
+        addMouseListener(input);
 
         state = GameState.MAIN_MENU;
         currentLevelNumber = FIRST_LEVEL;
@@ -203,12 +193,17 @@ public class Game extends JPanel implements Runnable, KeyListener, MouseListener
         }
     }
 
+    /** หน้าจอปัจจุบัน (InputHandler ใช้ตัดสินว่าคลิกนับเป็นการโจมตีหรือไม่) */
+    public GameState getState() {
+        return state;
+    }
+
     private void updateMainMenu() {
-        if (takeClick(PLAY_BUTTON)) {
+        if (input.takeClick(PLAY_BUTTON)) {
             newGame();
         }
-        clickPending = false;
-        attackRequested = false;
+        input.clearClick();
+        input.clearAttackRequest();
     }
 
     private void updatePlaying() {
@@ -225,16 +220,16 @@ public class Game extends JPanel implements Runnable, KeyListener, MouseListener
         // 1) เดินตามปุ่มที่กดค้างอยู่ แล้วกันไม่ให้ออกนอกกรอบพื้นที่เล่น
         int dx = 0;
         int dy = 0;
-        if (leftPressed) {
+        if (input.isLeftPressed()) {
             dx--;
         }
-        if (rightPressed) {
+        if (input.isRightPressed()) {
             dx++;
         }
-        if (upPressed) {
+        if (input.isUpPressed()) {
             dy--;
         }
-        if (downPressed) {
+        if (input.isDownPressed()) {
             dy++;
         }
         if (dx != 0 || dy != 0) {
@@ -245,15 +240,15 @@ public class Game extends JPanel implements Runnable, KeyListener, MouseListener
 
         // 2) โจมตีหนึ่งครั้งต่อหนึ่งคลิก จึงเคลียร์ flag ทันทีหลังใช้
         //    ฟันจริงเฉพาะตอนดาบพร้อม และแสดงรอยฟันเฉพาะตอนที่ฟันจริงเท่านั้น
-        if (attackRequested) {
-            attackRequested = false;
+        if (input.isAttackRequested()) {
+            input.clearAttackRequest();
             if (player.getSword().isReady()) {
                 player.attack(currentLevel.getEnemies());
                 attackFlashFrames = 8;
                 attackFlashFacing = player.getFacing();
             }
         }
-        clickPending = false;
+        input.clearClick();
 
         // 3) ให้ Level เดินศัตรูและเก็บดอกไม้
         currentLevel.update(player);
@@ -276,8 +271,8 @@ public class Game extends JPanel implements Runnable, KeyListener, MouseListener
         // ให้ cooldown ดาบและเวลาอมตะเดินต่อ ไม่งั้นจะค้างข้ามไปด่านถัดไป
         player.tick();
         player.getSword().tick();
-        clickPending = false;
-        attackRequested = false;
+        input.clearClick();
+        input.clearAttackRequest();
         levelClearFrames--;
         if (levelClearFrames <= 0) {
             changeLevel(currentLevelNumber + 1);
@@ -285,21 +280,21 @@ public class Game extends JPanel implements Runnable, KeyListener, MouseListener
     }
 
     private void updateGameOver() {
-        if (takeClick(RETRY_BUTTON)) {
+        if (input.takeClick(RETRY_BUTTON)) {
             retry();
-        } else if (takeClick(MENU_BUTTON)) {
+        } else if (input.takeClick(MENU_BUTTON)) {
             mainMenu();
         }
-        clickPending = false;
-        attackRequested = false;
+        input.clearClick();
+        input.clearAttackRequest();
     }
 
     private void updateWin() {
-        if (takeClick(WIN_MENU_BUTTON)) {
+        if (input.takeClick(WIN_MENU_BUTTON)) {
             mainMenu();
         }
-        clickPending = false;
-        attackRequested = false;
+        input.clearClick();
+        input.clearAttackRequest();
     }
 
     /** เริ่มเกมใหม่ทั้งหมดจาก Level 1 และรีเซ็ตความคืบหน้า (⑧ ปุ่ม Play) */
@@ -547,72 +542,6 @@ public class Game extends JPanel implements Runnable, KeyListener, MouseListener
             return assets.getShadowGhostSprite();
         }
         return assets.getWanderingGhostSprite();
-    }
-
-    // ============================================================
-    //  Event handling (ทำงานบน EDT เขียนลง field ที่เป็น volatile เท่านั้น)
-    // ============================================================
-
-    /** คืน true หนึ่งครั้งเมื่อมีคลิกค้างอยู่และตกในกรอบปุ่มที่ส่งมา */
-    private boolean takeClick(Rectangle button) {
-        if (!clickPending) {
-            return false;
-        }
-        return button.contains(clickX, clickY);
-    }
-
-    @Override
-    public void keyPressed(KeyEvent e) {
-        setKey(e.getKeyCode(), true);
-    }
-
-    @Override
-    public void keyReleased(KeyEvent e) {
-        setKey(e.getKeyCode(), false);
-    }
-
-    @Override
-    public void keyTyped(KeyEvent e) {
-        // ไม่ใช้ แต่ต้อง override ตามสัญญาของ KeyListener
-    }
-
-    private void setKey(int keyCode, boolean pressed) {
-        switch (keyCode) {
-            case KeyEvent.VK_W -> upPressed = pressed;
-            case KeyEvent.VK_S -> downPressed = pressed;
-            case KeyEvent.VK_A -> leftPressed = pressed;
-            case KeyEvent.VK_D -> rightPressed = pressed;
-            default -> {
-                // ปุ่มอื่นไม่มีผลในเกมนี้
-            }
-        }
-    }
-
-    @Override
-    public void mousePressed(MouseEvent e) {
-        clickX = e.getX();
-        clickY = e.getY();
-        clickPending = true;
-        if (state == GameState.PLAYING) {
-            attackRequested = true;
-        }
-    }
-
-    @Override
-    public void mouseClicked(MouseEvent e) {
-        // ใช้ mousePressed แทนเพื่อให้โจมตีตอบสนองทันทีที่กด
-    }
-
-    @Override
-    public void mouseReleased(MouseEvent e) {
-    }
-
-    @Override
-    public void mouseEntered(MouseEvent e) {
-    }
-
-    @Override
-    public void mouseExited(MouseEvent e) {
     }
 
     // ============================================================
