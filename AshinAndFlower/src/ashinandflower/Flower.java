@@ -90,10 +90,6 @@ public class Flower {
         return type;
     }
 
-    public int getHealAmount() {
-        return healAmount;
-    }
-
     public static int getSize() {
         return SIZE;
     }

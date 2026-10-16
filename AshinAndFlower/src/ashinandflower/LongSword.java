@@ -113,10 +113,6 @@ public class LongSword {
         return cooldownFrames == 0;
     }
 
-    public int getDamage() {
-        return damage;
-    }
-
     public int getRange() {
         return range;
     }

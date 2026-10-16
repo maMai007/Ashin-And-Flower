@@ -4,7 +4,6 @@ import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
-import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
@@ -20,13 +19,10 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.net.URL;
 import javax.imageio.ImageIO;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.Clip;
-import javax.sound.sampled.LineUnavailableException;
-import javax.sound.sampled.UnsupportedAudioFileException;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
@@ -109,7 +105,7 @@ public class Game extends JPanel implements Runnable, KeyListener, MouseListener
     private volatile int clickY;
 
     // ---------- รูปภาพ ----------
-    // ภาพเดียวใช้ร่วมกันทุกหน้าจอเมนู ถ้าโหลดไม่ได้จะเป็น null และ drawImage จะข้ามไป ไม่วาดอะไร (⑩ §5)
+    // ภาพเดียวใช้ร่วมกันทุกหน้าจอเมนู
     private final BufferedImage menuBackground;
     // ฉากของแต่ละ Level เก็บตาม index 1-3 (ช่อง 0 ไม่ใช้ เพื่อให้เลข Level ตรงกับ index)
     private final BufferedImage[] levelBackgrounds = new BufferedImage[LAST_LEVEL + 1];
@@ -124,7 +120,7 @@ public class Game extends JPanel implements Runnable, KeyListener, MouseListener
     private final BufferedImage buttonPlay;
     private final BufferedImage buttonRetry;
     private final BufferedImage buttonMenu;
-    // ฟอนต์พิกเซลต้นแบบ ขนาด 1 แล้วค่อย deriveFont ตามขนาดที่ใช้ (โหลดไม่ได้ = null)
+    // ฟอนต์พิกเซลต้นแบบ ขนาด 1 แล้วค่อย deriveFont ตามขนาดที่ใช้
     private Font pixelFont;
 
     // ---------- เสียง ----------
@@ -410,23 +406,11 @@ public class Game extends JPanel implements Runnable, KeyListener, MouseListener
 
     /**
      * โหลดไฟล์รูปจาก res/images
-     *
-     * หาไฟล์ 3 ทางตามลำดับ เพื่อให้รันได้ทั้งใน IDE และตอนแพ็กเป็น JAR
-     * 1) classpath `/images/` สำหรับตอนรันจาก JAR
-     * 2) โฟลเดอร์ res/images เทียบกับที่อยู่ของไฟล์ .class (ไล่ขึ้นไปทีละชั้น)
-     *    วิธีนี้ทำงานได้ไม่ว่าจะสั่งรันจากโฟลเดอร์ไหน
-     * 3) เทียบกับ working directory ปัจจุบัน เผื่อโครงสร้างโปรเจกต์ต่างออกไป
-     *
-     * โหลดไม่สำเร็จคืน null ซึ่ง drawImage จะข้ามไป เกมจึงไม่ crash (⑩ §5)
+     * หาโฟลเดอร์ res โดยไล่ขึ้นจากที่อยู่ของไฟล์ .class (เช่น bin -> AshinAndFlower)
+     * วิธีนี้ทำงานได้ไม่ว่าจะสั่งรันจากโฟลเดอร์ไหน
      */
     private BufferedImage loadImage(String fileName) {
         try {
-            java.net.URL url = getClass().getResource("/images/" + fileName);
-            if (url != null) {
-                return ImageIO.read(url);
-            }
-
-            // ไล่ขึ้นจากโฟลเดอร์ของไฟล์ .class เช่น bin/ashinandflower -> bin -> AshinAndFlower
             File dir = new File(getClass().getProtectionDomain()
                     .getCodeSource().getLocation().toURI()).getAbsoluteFile();
             for (int i = 0; i < 5 && dir != null; i++) {
@@ -436,19 +420,10 @@ public class Game extends JPanel implements Runnable, KeyListener, MouseListener
                 }
                 dir = dir.getParentFile();
             }
-
-            // เทียบกับ working directory เผื่อกรณีอื่น
-            for (String prefix : new String[]{"res/images/", "AshinAndFlower/res/images/"}) {
-                File candidate = new File(prefix + fileName);
-                if (candidate.isFile()) {
-                    return ImageIO.read(candidate);
-                }
-            }
-            System.out.println("ไม่พบไฟล์รูป " + fileName);
-        } catch (IOException | URISyntaxException | NullPointerException e) {
-            System.out.println("โหลดรูป " + fileName + " ไม่สำเร็จ");
+        } catch (IOException | URISyntaxException e) {
+            throw new RuntimeException("โหลดรูปไม่สำเร็จ: " + fileName, e);
         }
-        return null;
+        throw new RuntimeException("ไม่พบไฟล์รูป: " + fileName);
     }
 
     /** วาดพื้นหลังของหน้าจอเมนูตามรูปต้นฉบับ (ใช้ภาพเดียวกันทุกหน้า) */
@@ -575,7 +550,7 @@ public class Game extends JPanel implements Runnable, KeyListener, MouseListener
         }
     }
 
-    /** Overlay ทับหน้า Gameplay ที่ค้างภาพอยู่ (⑧) ไม่หรี่ฉาก วางแค่ข้อความทับ */
+    /** หน้า Level Clear: พื้นหลังเมนู กับข้อความ Level Clear และชื่อ Level ถัดไปกลางจอ */
     private void drawLevelClear(Graphics2D g2) {
         drawMenuBackground(g2);
         drawCenteredText(g2, "Level Clear", titleFont(), new Color(226, 214, 255), CLEAR_TITLE_Y);
@@ -601,23 +576,9 @@ public class Game extends JPanel implements Runnable, KeyListener, MouseListener
 
     // ---------- ตัวช่วยวาด ----------
 
-    /**
-     * วาดปุ่มจากรูป ข้อความอยู่ในรูปแล้วจึงไม่ต้องวาดตัวอักษรทับ
-     * ถ้าโหลดรูปไม่ได้จะขึ้นเป็นข้อความเปล่า ๆ แทน ผู้เล่นจะได้ยังเห็นว่าต้องกดตรงไหน
-     */
+    /** วาดปุ่มจากรูป ข้อความอยู่ในรูปแล้วจึงไม่ต้องวาดตัวอักษรทับ */
     private void drawButton(Graphics2D g2, Rectangle button, BufferedImage image, String label) {
-        if (image != null) {
-            g2.drawImage(image, button.x, button.y, button.width, button.height, null);
-            return;
-        }
-        g2.setFont(bodyFont());
-        g2.setColor(Color.WHITE);
-        // จัดกึ่งกลางกล่องทั้งสองแนวจาก FontMetrics: เอาความสูงตัวอักษร (ascent + descent)
-        // ไปวางกลางกล่อง แล้วบวก ascent เพราะ drawString ใช้ y เป็นเส้น baseline
-        FontMetrics fm = g2.getFontMetrics();
-        int textX = button.x + (button.width - fm.stringWidth(label)) / 2;
-        int textY = button.y + (button.height - (fm.getAscent() + fm.getDescent())) / 2 + fm.getAscent();
-        g2.drawString(label, textX, textY);
+        g2.drawImage(image, button.x, button.y, button.width, button.height, null);
     }
 
     private void drawCenteredText(Graphics2D g2, String text, Font font, Color color, int y) {
@@ -650,10 +611,7 @@ public class Game extends JPanel implements Runnable, KeyListener, MouseListener
         return wanderingGhostSprite;
     }
 
-    /**
-     * โหลดไฟล์ฟอนต์จาก res/fonts ด้วยวิธีหา path แบบเดียวกับ loadImage
-     * โหลดไม่สำเร็จคืน null แล้วเกมจะถอยไปใช้ Tahoma เหมือนเดิม
-     */
+    /** โหลดไฟล์ฟอนต์จาก res/fonts ด้วยวิธีหา path แบบเดียวกับ loadImage */
     private Font loadFont(String fileName) {
         try {
             File dir = new File(getClass().getProtectionDomain()
@@ -665,88 +623,45 @@ public class Game extends JPanel implements Runnable, KeyListener, MouseListener
                 }
                 dir = dir.getParentFile();
             }
-            for (String prefix : new String[]{"res/fonts/", "AshinAndFlower/res/fonts/"}) {
-                File candidate = new File(prefix + fileName);
-                if (candidate.isFile()) {
-                    return Font.createFont(Font.TRUETYPE_FONT, candidate);
-                }
-            }
-            System.out.println("ไม่พบไฟล์ฟอนต์ " + fileName + " ใช้ Tahoma แทน");
         } catch (Exception e) {
-            System.out.println("โหลดฟอนต์ " + fileName + " ไม่สำเร็จ ใช้ Tahoma แทน");
+            throw new RuntimeException("โหลดฟอนต์ไม่สำเร็จ: " + fileName, e);
         }
-        return null;
+        throw new RuntimeException("ไม่พบไฟล์ฟอนต์: " + fileName);
     }
 
     /**
      * โหลดไฟล์เสียงจาก res/audio เป็น Clip ด้วยวิธีหา path แบบเดียวกับ loadImage
      *
      * ใช้ javax.sound.sampled.Clip เพราะ java.applet.AudioClip ถูกถอดออกจาก JDK 24 แล้ว
-     * โหลดไม่สำเร็จคืน null เกมจะรันต่อแบบไม่มีเสียง ไม่ crash
+     * ถ้าเครื่องไม่มีอุปกรณ์เสียงหรือเปิดไฟล์ไม่ได้ จะคืน null แล้วเกมเล่นต่อแบบไม่มีเสียง
      */
     private Clip loadClip(String fileName) {
         try {
-            URL url = getClass().getResource("/audio/" + fileName);
-
-            // ไล่ขึ้นจากโฟลเดอร์ของไฟล์ .class หา res/audio
-            if (url == null) {
-                File dir = new File(getClass().getProtectionDomain()
-                        .getCodeSource().getLocation().toURI()).getAbsoluteFile();
-                for (int i = 0; i < 5 && dir != null && url == null; i++) {
-                    File candidate = new File(dir, "res/audio/" + fileName);
-                    if (candidate.isFile()) {
-                        url = candidate.toURI().toURL();
-                    }
-                    dir = dir.getParentFile();
+            File dir = new File(getClass().getProtectionDomain()
+                    .getCodeSource().getLocation().toURI()).getAbsoluteFile();
+            for (int i = 0; i < 5 && dir != null; i++) {
+                File candidate = new File(dir, "res/audio/" + fileName);
+                if (candidate.isFile()) {
+                    AudioInputStream ais = AudioSystem.getAudioInputStream(candidate);
+                    Clip clip = AudioSystem.getClip();
+                    clip.open(ais);
+                    return clip;
                 }
+                dir = dir.getParentFile();
             }
-
-            // เทียบกับ working directory เผื่อกรณีอื่น
-            if (url == null) {
-                for (String prefix : new String[]{"res/audio/", "AshinAndFlower/res/audio/"}) {
-                    File candidate = new File(prefix + fileName);
-                    if (candidate.isFile()) {
-                        url = candidate.toURI().toURL();
-                        break;
-                    }
-                }
-            }
-
-            if (url == null) {
-                System.out.println("ไม่พบไฟล์เสียง " + fileName + " เกมจะเล่นแบบไม่มีเสียง");
-                return null;
-            }
-
-            AudioInputStream ais = AudioSystem.getAudioInputStream(url);
-            Clip clip = AudioSystem.getClip();
-            clip.open(ais);
-            return clip;
-        } catch (UnsupportedAudioFileException e) {
-            System.out.println("ไฟล์เสียง " + fileName + " ไม่ใช่รูปแบบที่รองรับ");
-        } catch (LineUnavailableException e) {
-            System.out.println("เปิดอุปกรณ์เสียงไม่ได้ เกมจะเล่นแบบไม่มีเสียง");
-        } catch (IOException | URISyntaxException e) {
-            System.out.println("อ่านไฟล์เสียง " + fileName + " ไม่สำเร็จ");
-        } catch (IllegalArgumentException | SecurityException | NullPointerException e) {
-            // เช่น เครื่องไม่มีลำโพง/การ์ดเสียง AudioSystem.getClip() จะโยน IllegalArgumentException
-            System.out.println("ใช้งานระบบเสียงไม่ได้: " + e.getMessage());
+        } catch (Exception e) {
+            // เช่น เครื่องไม่มีลำโพง/การ์ดเสียง: ข้ามไปเล่นแบบไม่มีเสียง
         }
         return null;
     }
 
     // ขนาดต้องเป็นจำนวนเท่าของ 8 เพราะ Press Start 2P ออกแบบบนกริด 8px ถ้าไม่ลงตัวพิกเซลจะเบี้ยว
     private Font titleFont() {
-        if (pixelFont != null) {
-            return pixelFont.deriveFont(Font.PLAIN, 32f);
-        }
-        return new Font("Tahoma", Font.BOLD, 46);
+        return pixelFont.deriveFont(Font.PLAIN, 32f);
     }
 
     private Font bodyFont() {
-        if (pixelFont != null) {
-            return pixelFont.deriveFont(Font.PLAIN, 16f);
-        }
-        return new Font("Tahoma", Font.PLAIN, 20);
+        return pixelFont.deriveFont(Font.PLAIN, 16f);
     }
 
     // ============================================================

@@ -239,14 +239,6 @@ public abstract class Enemy {
         return maxHp;
     }
 
-    public int getDamage() {
-        return damage;
-    }
-
-    public double getSpeed() {
-        return speed;
-    }
-
     public static int getSize() {
         return SIZE;
     }
