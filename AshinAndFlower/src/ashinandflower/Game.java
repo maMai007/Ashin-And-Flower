@@ -16,12 +16,6 @@ import java.awt.event.MouseListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
-import java.net.URISyntaxException;
-import javax.imageio.ImageIO;
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.Clip;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
@@ -104,50 +98,15 @@ public class Game extends JPanel implements Runnable, KeyListener, MouseListener
     private volatile int clickX;
     private volatile int clickY;
 
-    // ---------- รูปภาพ ----------
-    // ภาพเดียวใช้ร่วมกันทุกหน้าจอเมนู
-    private final BufferedImage menuBackground;
-    // ฉากของแต่ละ Level เก็บตาม index 1-3 (ช่อง 0 ไม่ใช้ เพื่อให้เลข Level ตรงกับ index)
-    private final BufferedImage[] levelBackgrounds = new BufferedImage[LAST_LEVEL + 1];
-    // sprite ของ Player เก็บตามทิศ ใช้ Direction.ordinal() เป็น index
-    private final BufferedImage[] playerSprites = new BufferedImage[Direction.values().length];
-    private final BufferedImage wanderingGhostSprite;
-    private final BufferedImage shadowGhostSprite;
-    private final BufferedImage spiritGuardianSprite;
-    private final BufferedImage flowerNormalSprite;
-    private final BufferedImage flowerSpiritSprite;
-    // รูปพื้นหลังปุ่ม มีข้อความอยู่ในรูปแล้ว จึงไม่ต้องวาดตัวอักษรทับ
-    private final BufferedImage buttonPlay;
-    private final BufferedImage buttonRetry;
-    private final BufferedImage buttonMenu;
-    // ฟอนต์พิกเซลต้นแบบ ขนาด 1 แล้วค่อย deriveFont ตามขนาดที่ใช้
-    private Font pixelFont;
-
-    // ---------- เสียง ----------
-    // เพลงพื้นหลังเพลงเดียว เล่นวนตลอดตั้งแต่หน้าเมนูจนปิดเกม (โหลดไม่ได้ = null เกมจะเงียบแต่เล่นต่อได้)
-    private Clip bgmClip;
+    // ---------- ไฟล์รูป ฟอนต์ และเสียง ----------
+    private final AssetManager assets;
 
     public Game() {
-        menuBackground = loadImage("bg_menu.png");
-        for (int i = FIRST_LEVEL; i <= LAST_LEVEL; i++) {
-            levelBackgrounds[i] = loadImage("bg_level" + i + ".png");
-        }
-        playerSprites[Direction.UP.ordinal()] = loadImage("player_up.png");
-        playerSprites[Direction.DOWN.ordinal()] = loadImage("player_down.png");
-        playerSprites[Direction.LEFT.ordinal()] = loadImage("player_left.png");
-        playerSprites[Direction.RIGHT.ordinal()] = loadImage("player_right.png");
-        wanderingGhostSprite = loadImage("wandering_ghost.png");
-        shadowGhostSprite = loadImage("shadow_ghost.png");
-        spiritGuardianSprite = loadImage("spirit_guardian.png");
-        flowerNormalSprite = loadImage("flower_normal.png");
-        flowerSpiritSprite = loadImage("flower_spirit.png");
-        buttonPlay = loadImage("btn_play.png");
-        buttonRetry = loadImage("btn_retry.png");
-        buttonMenu = loadImage("btn_menu.png");
-        pixelFont = loadFont("PressStart2P-Regular.ttf");
+        assets = new AssetManager(LAST_LEVEL);
 
+        // เพลงพื้นหลังเล่นวนตลอดตั้งแต่หน้าเมนูจนปิดเกม (โหลดไม่ได้ = null เกมจะเงียบแต่เล่นต่อได้)
         // Clip เล่นเสียงบน thread ของตัวเอง จึงไม่ต้องสร้าง thread เพิ่ม
-        bgmClip = loadClip("bgm.wav");
+        Clip bgmClip = assets.getBgmClip();
         if (bgmClip != null) {
             bgmClip.loop(Clip.LOOP_CONTINUOUSLY);
         }
@@ -222,6 +181,7 @@ public class Game extends JPanel implements Runnable, KeyListener, MouseListener
     /** สั่งให้ game thread หยุดอย่างปลอดภัย (ไม่ใช้ Thread.stop ซึ่ง deprecated) */
     public void stopGame() {
         running = false;
+        Clip bgmClip = assets.getBgmClip();
         if (bgmClip != null) {
             bgmClip.stop();
             bgmClip.close();
@@ -404,43 +364,21 @@ public class Game extends JPanel implements Runnable, KeyListener, MouseListener
         }
     }
 
-    /**
-     * โหลดไฟล์รูปจาก res/images
-     * หาโฟลเดอร์ res โดยไล่ขึ้นจากที่อยู่ของไฟล์ .class (เช่น bin -> AshinAndFlower)
-     * วิธีนี้ทำงานได้ไม่ว่าจะสั่งรันจากโฟลเดอร์ไหน
-     */
-    private BufferedImage loadImage(String fileName) {
-        try {
-            File dir = new File(getClass().getProtectionDomain()
-                    .getCodeSource().getLocation().toURI()).getAbsoluteFile();
-            for (int i = 0; i < 5 && dir != null; i++) {
-                File candidate = new File(dir, "res/images/" + fileName);
-                if (candidate.isFile()) {
-                    return ImageIO.read(candidate);
-                }
-                dir = dir.getParentFile();
-            }
-        } catch (IOException | URISyntaxException e) {
-            throw new RuntimeException("โหลดรูปไม่สำเร็จ: " + fileName, e);
-        }
-        throw new RuntimeException("ไม่พบไฟล์รูป: " + fileName);
-    }
-
     /** วาดพื้นหลังของหน้าจอเมนูตามรูปต้นฉบับ (ใช้ภาพเดียวกันทุกหน้า) */
     private void drawMenuBackground(Graphics2D g2) {
-        g2.drawImage(menuBackground, 0, 0, Level.SCREEN_WIDTH, Level.SCREEN_HEIGHT, null);
+        g2.drawImage(assets.getMenuBackground(), 0, 0, Level.SCREEN_WIDTH, Level.SCREEN_HEIGHT, null);
     }
 
     private void drawMainMenu(Graphics2D g2) {
         drawMenuBackground(g2);
-        drawCenteredText(g2, "Ashin & Flower", titleFont(), new Color(226, 214, 255), MENU_TITLE_Y);
-        drawCenteredText(g2, "W A S D / Click", bodyFont(), new Color(150, 142, 180), MENU_SUBTITLE_Y);
-        drawButton(g2, PLAY_BUTTON, buttonPlay, "Play");
+        drawCenteredText(g2, "Ashin & Flower", assets.getTitleFont(), new Color(226, 214, 255), MENU_TITLE_Y);
+        drawCenteredText(g2, "W A S D / Click", assets.getBodyFont(), new Color(150, 142, 180), MENU_SUBTITLE_Y);
+        drawButton(g2, PLAY_BUTTON, assets.getButtonPlay(), "Play");
     }
 
     private void drawGameplay(Graphics2D g2) {
         // ฉากของ Level
-        g2.drawImage(levelBackgrounds[currentLevel.getLevelNumber()],
+        g2.drawImage(assets.getLevelBackground(currentLevel.getLevelNumber()),
                 0, 0, Level.SCREEN_WIDTH, Level.SCREEN_HEIGHT, null);
 
         // ดอกไม้ (วนด้วย index เพราะ game thread อาจเพิ่ม Spirit Flower ระหว่างที่ EDT กำลังวาด)
@@ -479,7 +417,7 @@ public class Game extends JPanel implements Runnable, KeyListener, MouseListener
             g2.fillOval(cx - glowR, cy - glowR, glowR * 2, glowR * 2);
 
             BufferedImage sprite = flower.getType() == FlowerType.SPIRIT
-                    ? flowerSpiritSprite : flowerNormalSprite;
+                    ? assets.getFlowerSpiritSprite() : assets.getFlowerNormalSprite();
             g2.drawImage(sprite, flower.getX(), flower.getY() + bob,
                     Flower.getSize(), Flower.getSize(), null);
         }
@@ -529,14 +467,14 @@ public class Game extends JPanel implements Runnable, KeyListener, MouseListener
         // Player และทิศที่หันอยู่ (ช่วงอมตะจะกะพริบ: ข้ามการวาดทุก ๆ 4 เฟรมสลับกัน)
         boolean blinkHidden = player.isInvulnerable() && (frameCounter / 4) % 2 == 0;
         if (!blinkHidden) {
-            g2.drawImage(playerSprites[player.getFacing().ordinal()], player.getX(), player.getY(),
+            g2.drawImage(assets.getPlayerSprite(player.getFacing()), player.getX(), player.getY(),
                     Player.getSize(), Player.getSize(), null);
         }
         drawHpBar(g2, player.getX(), player.getY() - 10, Player.getSize(),
                 player.getHp(), player.getMaxHp(), new Color(110, 220, 130));
 
         // HUD: ชื่อ Level มุมซ้ายบน
-        g2.setFont(bodyFont());
+        g2.setFont(assets.getBodyFont());
         // เงาใต้ตัวอักษรให้ HUD อ่านออกบนพื้นหลังที่มีลวดลาย
         g2.setColor(new Color(0, 0, 0, 170));
         g2.drawString(currentLevel.getDisplayName(), 21, 37);
@@ -553,25 +491,25 @@ public class Game extends JPanel implements Runnable, KeyListener, MouseListener
     /** หน้า Level Clear: พื้นหลังเมนู กับข้อความ Level Clear และชื่อ Level ถัดไปกลางจอ */
     private void drawLevelClear(Graphics2D g2) {
         drawMenuBackground(g2);
-        drawCenteredText(g2, "Level Clear", titleFont(), new Color(226, 214, 255), CLEAR_TITLE_Y);
-        drawCenteredText(g2, "Level " + (currentLevelNumber + 1), bodyFont(),
+        drawCenteredText(g2, "Level Clear", assets.getTitleFont(), new Color(226, 214, 255), CLEAR_TITLE_Y);
+        drawCenteredText(g2, "Level " + (currentLevelNumber + 1), assets.getBodyFont(),
                 new Color(170, 162, 200), CLEAR_SUBTITLE_Y);
     }
 
     private void drawGameOver(Graphics2D g2) {
         drawMenuBackground(g2);
-        drawCenteredText(g2, "GAME OVER", titleFont(), new Color(240, 120, 120), MENU_TITLE_Y);
-        drawCenteredText(g2, gameOverReason, bodyFont(), new Color(190, 160, 160), MENU_SUBTITLE_Y);
-        drawButton(g2, RETRY_BUTTON, buttonRetry, "Retry");
-        drawButton(g2, MENU_BUTTON, buttonMenu, "Main Menu");
+        drawCenteredText(g2, "GAME OVER", assets.getTitleFont(), new Color(240, 120, 120), MENU_TITLE_Y);
+        drawCenteredText(g2, gameOverReason, assets.getBodyFont(), new Color(190, 160, 160), MENU_SUBTITLE_Y);
+        drawButton(g2, RETRY_BUTTON, assets.getButtonRetry(), "Retry");
+        drawButton(g2, MENU_BUTTON, assets.getButtonMenu(), "Main Menu");
     }
 
     private void drawWin(Graphics2D g2) {
         drawMenuBackground(g2);
-        drawCenteredText(g2, "YOU WIN!", titleFont(), new Color(255, 236, 150), MENU_TITLE_Y);
-        drawCenteredText(g2, "You collected the Spirit Flower!", bodyFont(),
+        drawCenteredText(g2, "YOU WIN!", assets.getTitleFont(), new Color(255, 236, 150), MENU_TITLE_Y);
+        drawCenteredText(g2, "You collected the Spirit Flower!", assets.getBodyFont(),
                 new Color(180, 200, 180), MENU_SUBTITLE_Y);
-        drawButton(g2, WIN_MENU_BUTTON, buttonMenu, "Main Menu");
+        drawButton(g2, WIN_MENU_BUTTON, assets.getButtonMenu(), "Main Menu");
     }
 
     // ---------- ตัวช่วยวาด ----------
@@ -603,65 +541,12 @@ public class Game extends JPanel implements Runnable, KeyListener, MouseListener
     /** เลือก sprite ตามชนิดของศัตรู (ใช้ Polymorphism ผ่าน instanceof) */
     private BufferedImage enemySprite(Enemy enemy) {
         if (enemy instanceof SpiritGuardian) {
-            return spiritGuardianSprite;
+            return assets.getSpiritGuardianSprite();
         }
         if (enemy instanceof ShadowGhost) {
-            return shadowGhostSprite;
+            return assets.getShadowGhostSprite();
         }
-        return wanderingGhostSprite;
-    }
-
-    /** โหลดไฟล์ฟอนต์จาก res/fonts ด้วยวิธีหา path แบบเดียวกับ loadImage */
-    private Font loadFont(String fileName) {
-        try {
-            File dir = new File(getClass().getProtectionDomain()
-                    .getCodeSource().getLocation().toURI()).getAbsoluteFile();
-            for (int i = 0; i < 5 && dir != null; i++) {
-                File candidate = new File(dir, "res/fonts/" + fileName);
-                if (candidate.isFile()) {
-                    return Font.createFont(Font.TRUETYPE_FONT, candidate);
-                }
-                dir = dir.getParentFile();
-            }
-        } catch (Exception e) {
-            throw new RuntimeException("โหลดฟอนต์ไม่สำเร็จ: " + fileName, e);
-        }
-        throw new RuntimeException("ไม่พบไฟล์ฟอนต์: " + fileName);
-    }
-
-    /**
-     * โหลดไฟล์เสียงจาก res/audio เป็น Clip ด้วยวิธีหา path แบบเดียวกับ loadImage
-     *
-     * ใช้ javax.sound.sampled.Clip เพราะ java.applet.AudioClip ถูกถอดออกจาก JDK 24 แล้ว
-     * ถ้าเครื่องไม่มีอุปกรณ์เสียงหรือเปิดไฟล์ไม่ได้ จะคืน null แล้วเกมเล่นต่อแบบไม่มีเสียง
-     */
-    private Clip loadClip(String fileName) {
-        try {
-            File dir = new File(getClass().getProtectionDomain()
-                    .getCodeSource().getLocation().toURI()).getAbsoluteFile();
-            for (int i = 0; i < 5 && dir != null; i++) {
-                File candidate = new File(dir, "res/audio/" + fileName);
-                if (candidate.isFile()) {
-                    AudioInputStream ais = AudioSystem.getAudioInputStream(candidate);
-                    Clip clip = AudioSystem.getClip();
-                    clip.open(ais);
-                    return clip;
-                }
-                dir = dir.getParentFile();
-            }
-        } catch (Exception e) {
-            // เช่น เครื่องไม่มีลำโพง/การ์ดเสียง: ข้ามไปเล่นแบบไม่มีเสียง
-        }
-        return null;
-    }
-
-    // ขนาดต้องเป็นจำนวนเท่าของ 8 เพราะ Press Start 2P ออกแบบบนกริด 8px ถ้าไม่ลงตัวพิกเซลจะเบี้ยว
-    private Font titleFont() {
-        return pixelFont.deriveFont(Font.PLAIN, 32f);
-    }
-
-    private Font bodyFont() {
-        return pixelFont.deriveFont(Font.PLAIN, 16f);
+        return assets.getWanderingGhostSprite();
     }
 
     // ============================================================
