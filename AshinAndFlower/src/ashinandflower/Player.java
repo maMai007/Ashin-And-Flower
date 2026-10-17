@@ -16,9 +16,14 @@ public class Player {
     private Direction facing;
     private final LongSword sword;
 
-    // หลังโดนโจมตีจะอมตะชั่วคราว 30 เฟรม (0.5 วินาที) กันโดนศัตรูหลายตัวรุมพร้อมกันในเฟรมเดียว
-    private static final int INVULNERABLE_FRAMES = 30;
-    private int invulnerableFrames;
+    // หลังโดนโจมตีตัวจะกะพริบ 30 เฟรม (0.5 วินาที) เป็นเอฟเฟกต์ภาพอย่างเดียว ไม่บล็อกดาเมจ
+    // ศัตรูแต่ละตัวลงดาเมจได้อิสระตาม cooldown ของตัวเอง
+    private static final int HIT_FLASH_FRAMES = 30;
+    private int hitFlashFrames;
+
+    // หลังได้รับการฟื้น HP แถบ HP จะกะพริบสีเขียว 30 เฟรม
+    private static final int HEAL_FLASH_FRAMES = 30;
+    private int healFlashFrames;
 
     // Sub-pixel movement carried between calls so diagonal steps work with integer coordinates.
     private double remainderX;
@@ -109,7 +114,8 @@ public class Player {
         this.y = y;
         this.remainderX = 0;
         this.remainderY = 0;
-        this.invulnerableFrames = 0;
+        this.hitFlashFrames = 0;
+        this.healFlashFrames = 0;
     }
 
     /** กัน Player ไม่ให้เดินออกนอกกรอบพื้นที่เล่น (แนวต้นไม้รอบนอก) */
@@ -128,30 +134,43 @@ public class Player {
         }
     }
 
+    /** ลด HP ทุกครั้งที่ถูกเรียก (ไม่มีช่วงอมตะ) แล้วเริ่มกะพริบตัว */
     public void takeDamage(int amount) {
-        if (amount <= 0 || invulnerableFrames > 0) {
+        if (amount <= 0) {
             return;
         }
         hp = Math.max(0, hp - amount);
-        invulnerableFrames = INVULNERABLE_FRAMES;
+        hitFlashFrames = HIT_FLASH_FRAMES;
     }
 
-    /** นับถอยหลังเวลาอมตะหนึ่งเฟรม (Game เรียกทุกเฟรม) */
+    /** นับถอยหลังเอฟเฟกต์กะพริบหนึ่งเฟรม (Game เรียกทุกเฟรม) */
     public void tick() {
-        if (invulnerableFrames > 0) {
-            invulnerableFrames--;
+        if (hitFlashFrames > 0) {
+            hitFlashFrames--;
+        }
+        if (healFlashFrames > 0) {
+            healFlashFrames--;
         }
     }
 
-    public boolean isInvulnerable() {
-        return invulnerableFrames > 0;
+    public boolean isHitFlashing() {
+        return hitFlashFrames > 0;
+    }
+
+    public boolean isHealFlashing() {
+        return healFlashFrames > 0;
     }
 
     public void heal(int amount) {
         if (amount <= 0 || isDead()) {
             return;
         }
+        int oldHp = hp;
         hp = Math.min(maxHp, hp + amount);
+        // กะพริบเฉพาะตอนที่ HP เพิ่มขึ้นจริง (HP เต็มอยู่แล้วไม่กะพริบ)
+        if (hp > oldHp) {
+            healFlashFrames = HEAL_FLASH_FRAMES;
+        }
     }
 
     public int getHp() {

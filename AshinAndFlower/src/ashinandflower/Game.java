@@ -181,7 +181,7 @@ public class Game extends JPanel implements Runnable {
     }
 
     private void updatePlaying() {
-        // 0) นับถอยหลังเวลาอมตะของ Player และ cooldown ของดาบ
+        // 0) นับถอยหลังเอฟเฟกต์กะพริบของ Player และ cooldown ของดาบ
         player.tick();
         player.getSword().tick();
 
@@ -242,7 +242,7 @@ public class Game extends JPanel implements Runnable {
 
     /** หน้า Level Clear ไม่รับ Input และเปลี่ยน Level เองเมื่อครบเวลา (⑧ §2) */
     private void updateLevelClear() {
-        // ให้ cooldown ดาบและเวลาอมตะเดินต่อ ไม่งั้นจะค้างข้ามไปด่านถัดไป
+        // ให้ cooldown ดาบและเอฟเฟกต์กะพริบเดินต่อ ไม่งั้นจะค้างข้ามไปด่านถัดไป
         player.tick();
         player.getSword().tick();
         input.clearClick();

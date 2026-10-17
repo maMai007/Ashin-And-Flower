@@ -173,14 +173,16 @@ public class GameRenderer {
             g2.setStroke(oldStroke);
         }
 
-        // Player และทิศที่หันอยู่ (ช่วงอมตะจะกะพริบ: ข้ามการวาดทุก ๆ 4 เฟรมสลับกัน)
-        boolean blinkHidden = player.isInvulnerable() && (frameCounter / 4) % 2 == 0;
+        // Player และทิศที่หันอยู่ (หลังโดนโจมตีจะกะพริบ: ข้ามการวาดทุก ๆ 4 เฟรมสลับกัน)
+        boolean blinkHidden = player.isHitFlashing() && (frameCounter / 4) % 2 == 0;
         if (!blinkHidden) {
             g2.drawImage(assets.getPlayerSprite(player.getFacing()), player.getX(), player.getY(),
                     Player.getSize(), Player.getSize(), null);
         }
+        // หลังได้รับการฟื้น แถบ HP เป็นเขียวสว่าง
+        Color playerHpColor = player.isHealFlashing() ? new Color(140, 255, 150) : new Color(110, 220, 130);
         drawHpBar(g2, player.getX(), player.getY() - 10, Player.getSize(),
-                player.getHp(), player.getMaxHp(), new Color(110, 220, 130));
+                player.getHp(), player.getMaxHp(), playerHpColor);
 
         // HUD: ชื่อ Level มุมซ้ายบน
         g2.setFont(assets.getBodyFont());
