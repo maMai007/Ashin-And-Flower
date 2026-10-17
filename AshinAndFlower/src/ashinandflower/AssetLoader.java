@@ -4,13 +4,15 @@ import java.awt.Font;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URISyntaxException;
+import java.net.URL;
 import javax.imageio.ImageIO;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.Clip;
 
-/** โหลดและเก็บรูป ฟอนต์ และเสียงทั้งหมดของเกมจากโฟลเดอร์ res */
+/** โหลดและเก็บรูป ฟอนต์ และเสียงทั้งหมดของเกมจากใน jar หรือโฟลเดอร์ res */
 public class AssetLoader {
 
     // หน้าจอเมนู
@@ -59,6 +61,16 @@ public class AssetLoader {
 
     // การหาไฟล์และโหลดไฟล์
 
+    /** หา <folder>/<fileName> จาก classpath (ใน jar) ก่อน ไม่เจอค่อยหาโฟลเดอร์ res ในเครื่อง ไม่เจอคืน null */
+    private URL findResource(String folder, String fileName) throws IOException, URISyntaxException {
+        URL url = getClass().getResource("/" + folder + "/" + fileName);
+        if (url != null) {
+            return url;
+        }
+        File file = findResFile(folder, fileName);
+        return file != null ? file.toURI().toURL() : null;
+    }
+
     /** หา res/<folder>/<fileName> โดยไล่ขึ้นจากโฟลเดอร์ .class และโฟลเดอร์ที่สั่งรัน ไม่เจอคืน null */
     private File findResFile(String folder, String fileName) throws URISyntaxException {
         File classDir = new File(getClass().getProtectionDomain()
@@ -81,9 +93,9 @@ public class AssetLoader {
 
     private BufferedImage loadImage(String fileName) {
         try {
-            File file = findResFile("images", fileName);
-            if (file != null) {
-                return ImageIO.read(file);
+            URL url = findResource("images", fileName);
+            if (url != null) {
+                return ImageIO.read(url);
             }
         } catch (IOException | URISyntaxException e) {
             throw new RuntimeException("โหลดรูปไม่สำเร็จ: " + fileName, e);
@@ -93,9 +105,11 @@ public class AssetLoader {
 
     private Font loadFont(String fileName) {
         try {
-            File file = findResFile("fonts", fileName);
-            if (file != null) {
-                return Font.createFont(Font.TRUETYPE_FONT, file);
+            URL url = findResource("fonts", fileName);
+            if (url != null) {
+                try (InputStream in = url.openStream()) {
+                    return Font.createFont(Font.TRUETYPE_FONT, in);
+                }
             }
         } catch (Exception e) {
             throw new RuntimeException("โหลดฟอนต์ไม่สำเร็จ: " + fileName, e);
@@ -103,12 +117,12 @@ public class AssetLoader {
         throw new RuntimeException("ไม่พบไฟล์ฟอนต์: " + fileName);
     }
 
-    /** โหลดเสียงจาก res/audio เป็น Clip เล่นไม่ได้คืน null */
+    /** โหลดเสียงจาก audio เป็น Clip เล่นไม่ได้คืน null */
     private Clip loadClip(String fileName) {
         try {
-            File file = findResFile("audio", fileName);
-            if (file != null) {
-                AudioInputStream ais = AudioSystem.getAudioInputStream(file);
+            URL url = findResource("audio", fileName);
+            if (url != null) {
+                AudioInputStream ais = AudioSystem.getAudioInputStream(url);
                 Clip clip = AudioSystem.getClip();
                 clip.open(ais);
                 return clip;
