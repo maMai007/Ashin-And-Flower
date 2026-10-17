@@ -4,6 +4,13 @@
 ผู้เล่นควบคุม Ashin นักเดินทางที่หลงเข้ามาในดินแดนที่ถูกวิญญาณยึดครอง ต้องใช้ Long Sword ต่อสู้กับวิญญาณ
 และเก็บดอกไม้เพื่อฟื้น HP ระหว่างทาง ผ่าน 3 ด่านไปจนถึง Spirit Ruins เพื่อเผชิญหน้ากับ SpiritGuardian
 
+## ดาวน์โหลดเกม
+
+ดาวน์โหลด `AshinAndFlower.jar` ได้จากหน้า [Releases](https://github.com/maMai007/Ashin-And-Flower/releases) ของ repo นี้
+ต้องติดตั้ง **Java 17 ขึ้นไป** แล้วดับเบิลคลิกไฟล์เพื่อเล่นได้เลย
+
+ถ้าแก้โค้ดแล้วอยากสร้าง jar ใหม่ ให้รัน `AshinAndFlower/build-jar.bat` ไฟล์ที่ได้จะอยู่ที่ `AshinAndFlower/dist/AshinAndFlower.jar`
+
 ## วิธีรัน
 
 ต้องใช้ **JDK 14 ขึ้นไป** (แนะนำ JDK 17 LTS หรือใหม่กว่า)
