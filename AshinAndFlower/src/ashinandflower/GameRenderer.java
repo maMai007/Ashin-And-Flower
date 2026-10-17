@@ -12,7 +12,7 @@ import java.awt.image.BufferedImage;
  * วาดทุกหน้าจอของเกมลงบน Graphics2D ที่ Game ส่งมาจาก paintComponent
  *
  * คลาสนี้ไม่เก็บสถานะเกมไว้เอง ข้อมูลที่ต้องใช้วาดจะถูกส่งมาเป็นพารามิเตอร์ทุกครั้ง
- * เก็บไว้แค่ AssetManager (รูปและฟอนต์) กับตำแหน่งปุ่ม
+ * เก็บไว้แค่ AssetLoader (รูปและฟอนต์) กับตำแหน่งปุ่ม
  */
 public class GameRenderer {
 
@@ -42,9 +42,9 @@ public class GameRenderer {
     private static final Rectangle WIN_MENU_BUTTON =
             new Rectangle(SINGLE_BUTTON_X, MENU_BUTTON_Y, BUTTON_W, BUTTON_H);
 
-    private final AssetManager assets;
+    private final AssetLoader assets;
 
-    public GameRenderer(AssetManager assets) {
+    public GameRenderer(AssetLoader assets) {
         this.assets = assets;
     }
 

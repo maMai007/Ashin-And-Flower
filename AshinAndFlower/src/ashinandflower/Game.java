@@ -58,13 +58,13 @@ public class Game extends JPanel implements Runnable {
     private final InputHandler input;
 
     // ---------- ไฟล์รูป ฟอนต์ และเสียง ----------
-    private final AssetManager assets;
+    private final AssetLoader assets;
 
     // ---------- ตัววาดหน้าจอ ----------
     private final GameRenderer renderer;
 
     public Game() {
-        assets = new AssetManager(LAST_LEVEL);
+        assets = new AssetLoader(LAST_LEVEL);
         renderer = new GameRenderer(assets);
 
         // เพลงพื้นหลังเล่นวนตลอดตั้งแต่หน้าเมนูจนปิดเกม (โหลดไม่ได้ = null เกมจะเงียบแต่เล่นต่อได้)

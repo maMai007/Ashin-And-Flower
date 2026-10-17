@@ -16,7 +16,7 @@ import javax.sound.sampled.Clip;
  * Game สร้างคลาสนี้หนึ่งตัวตอนเริ่มเกม แล้วขอไฟล์ผ่าน getter
  * ถ้ารูปหรือฟอนต์หายจะ throw ทันทีตอนสร้าง ส่วนเสียงที่ใช้ไม่ได้จะเป็น null
  */
-public class AssetManager {
+public class AssetLoader {
 
     // ---------- รูปภาพ ----------
     // ภาพเดียวใช้ร่วมกันทุกหน้าจอเมนู
@@ -42,7 +42,7 @@ public class AssetManager {
     private Clip bgmClip;
 
     /** โหลดไฟล์ทั้งหมด levelCount คือจำนวน Level ที่มีฉากให้โหลด (bg_level1.png ถึง bg_levelN.png) */
-    public AssetManager(int levelCount) {
+    public AssetLoader(int levelCount) {
         menuBackground = loadImage("bg_menu.png");
         levelBackgrounds = new BufferedImage[levelCount + 1];
         for (int i = 1; i <= levelCount; i++) {
