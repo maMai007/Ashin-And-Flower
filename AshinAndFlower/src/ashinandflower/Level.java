@@ -2,13 +2,10 @@ package ashinandflower;
 
 import java.util.ArrayList;
 
-/**
- * เก็บข้อมูลของแต่ละ Level: ศัตรู ดอกไม้ และเงื่อนไขผ่านระดับ
- * Level 1-2 ผ่านเมื่อกำจัดศัตรูครบ, Level 3 ต้องกำจัด SpiritGuardian แล้วเก็บ Spirit Flower
- */
+/** ข้อมูลของแต่ละ Level: ศัตรู ดอกไม้ และเงื่อนไขผ่านด่าน */
 public class Level {
 
-    // ขนาดหน้าจอและกรอบพื้นที่เล่น (ตามแผน ⑩ §3.3)
+    // ขนาดหน้าจอและกรอบพื้นที่เล่น
     public static final int SCREEN_WIDTH = 960;
     public static final int SCREEN_HEIGHT = 540;
     public static final int PLAY_LEFT = 16;
@@ -33,10 +30,7 @@ public class Level {
         createFlowers();
     }
 
-    /**
-     * สร้างศัตรูตามจำนวนที่ล็อกไว้ในเอกสาร ③
-     * กระจายทั่วพื้นที่เล่น ทุกจุดอยู่ในกรอบและห่างจุดเกิด Player (444, 412) อย่างน้อย 200 px
-     */
+    /** สร้างศัตรูให้ห่างจุดเกิด Player อย่างน้อย 200 px */
     private void createEnemies() {
         if (levelNumber == 1) {
             enemies.add(new WanderingGhost(80, 90));
@@ -54,7 +48,7 @@ public class Level {
         }
     }
 
-    /** สร้างดอกไม้ Normal เฉพาะ Level 1-2 (ตามแผน ⑩ §3.2) กระจายทั่วพื้นที่เล่นเหมือนศัตรู */
+    /** สร้างดอกไม้ Normal เฉพาะ Level 1-2 */
     private void createFlowers() {
         if (levelNumber == 1) {
             flowers.add(new Flower(180, 230, FlowerType.NORMAL));
@@ -74,7 +68,7 @@ public class Level {
             return;
         }
 
-        // 1) ศัตรูเดินและสร้าง contact damage
+        // 1) ศัตรูเดินและทำ contact damage
         for (int i = 0; i < enemies.size(); i++) {
             Enemy enemy = enemies.get(i);
             if (!enemy.isDefeated()) {
@@ -84,10 +78,10 @@ public class Level {
             }
         }
 
-        // 2) Player เดินทับดอกไม้แล้วเก็บเลย ไม่ต้องกดปุ่ม
+        // 2) เก็บดอกไม้ที่ Player เดินทับ
         for (int i = 0; i < flowers.size(); i++) {
             Flower flower = flowers.get(i);
-            // นับเอฟเฟกต์ก่อน เพื่อให้ดอกที่เก็บไปแล้วยังนับถอยหลังวงแหวนต่อได้
+            // นับเอฟเฟกต์ทุกดอก รวมดอกที่เก็บแล้ว
             flower.tickEffects();
             if (!flower.isCollected() && flower.isTouching(player)) {
                 flower.collect(player);
@@ -99,9 +93,9 @@ public class Level {
             spawnSpiritFlower();
         }
 
-        // 4) ตรวจเงื่อนไขผ่านระดับ ตั้ง cleared ครั้งเดียวเพื่อกันทำงานซ้ำ
+        // 4) ตรวจเงื่อนไขผ่านด่าน
         if (levelNumber == 3) {
-            // รอให้วงแหวนของ Spirit Flower เล่นจนจบก่อนค่อยไปหน้า Win
+            // รอวงแหวนของ Spirit Flower จบก่อน
             if (checkBossDefeated() && isSpiritFlowerCollected()) {
                 boolean ringFinished = true;
                 for (int i = 0; i < flowers.size(); i++) {
@@ -157,7 +151,7 @@ public class Level {
         return true;
     }
 
-    /** จุดเริ่มต้นของ Player ในแต่ละ Level (กลางล่างของพื้นที่เล่น) */
+    /** จุดเริ่มของ Player (กลางล่างของพื้นที่เล่น) */
     public int getPlayerStartX() {
         return SCREEN_WIDTH / 2 - Player.getSize() / 2;
     }
@@ -166,7 +160,7 @@ public class Level {
         return PLAY_BOTTOM - Player.getSize() - 40;
     }
 
-    /** ชื่อ Level ที่แสดงบน HUD (ใช้ชื่อทางการภาษาอังกฤษ) */
+    /** ชื่อ Level ที่แสดงบน HUD */
     public String getDisplayName() {
         if (levelNumber == 1) {
             return "Forgotten Garden";

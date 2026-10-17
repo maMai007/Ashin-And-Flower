@@ -4,7 +4,7 @@ import java.util.Random;
 
 public abstract class Enemy {
 
-    // ขนาดกล่องชนของศัตรู (px); ขนาดของ Player อ่านจาก Player.getSize()
+    // ขนาดกล่องชนของศัตรู (px)
     private static final int SIZE = 72;
 
     private int x;
@@ -15,23 +15,22 @@ public abstract class Enemy {
     private boolean defeated;
     private double speed;
 
-    // Sub-pixel movement carried between frames so fractional speeds work with integer coordinates.
+    // เศษพิกเซลสะสมข้ามเฟรม ให้ความเร็วทศนิยมใช้กับพิกัด int ได้
     private double remainderX;
     private double remainderY;
 
-    // Frames to wait between contact hits while still touching the Player (48 frames = 0.8 s at 60 FPS).
+    // เฟรมที่รอก่อนชน Player ซ้ำ (0.8 วินาที)
     private static final int CONTACT_COOLDOWN_FRAMES = 48;
     private int contactCooldown;
 
-    // Frames left of the white hit flash after taking a sword hit (Game reads it to draw).
+    // เฟรมที่เหลือของการกะพริบขาวหลังโดนดาบ
     private int hitFlashFrames;
 
-    // Knockback after a sword hit: pushed knockbackX/Y px per frame for knockbackFrames frames.
+    // การกระเด็นหลังโดนดาบ
     private int knockbackFrames;
     private double knockbackX, knockbackY;
 
-    // Random wandering shared by WanderingGhost and ShadowGhost.
-    // Provisional: frames before picking a new random wander direction.
+    // การเดินสุ่ม: สุ่มทิศใหม่ทุก WANDER_FRAMES เฟรม
     private static final int WANDER_FRAMES = 60;
     private final Random random = new Random();
     private Direction wanderDirection;
@@ -42,7 +41,7 @@ public abstract class Enemy {
         this.y = y;
     }
 
-    // Called once by each subclass constructor to set its stats.
+    // subclass เรียกใน constructor เพื่อตั้งค่าสถานะ
     protected final void setStats(int hp, int damage, double speed) {
         this.hp = Math.max(0, hp);
         this.maxHp = this.hp;
@@ -59,7 +58,7 @@ public abstract class Enemy {
         checkHP();
     }
 
-    // Deals contact damage while touching the Player, at most once every CONTACT_COOLDOWN_FRAMES.
+    // ทำ contact damage เมื่อแตะ Player ตาม cooldown
     public void attack(Player player) {
         if (defeated || player == null || player.isDead()) {
             return;
@@ -91,7 +90,7 @@ public abstract class Enemy {
 
     public abstract void update(Player player);
 
-    // Counts down visual effects by one frame; subclasses call this first in update().
+    // นับถอยหลังเอฟเฟกต์ภาพหนึ่งเฟรม
     protected void tickEffects() {
         if (hitFlashFrames > 0) {
             hitFlashFrames--;
@@ -102,13 +101,13 @@ public abstract class Enemy {
         return hitFlashFrames > 0;
     }
 
-    // Starts a knockback in the direction the Player swung (LongSword calls this after a hit).
+    // เริ่มกระเด็นไปตามทิศที่ Player ฟัน
     public void applyKnockback(Direction dir) {
         if (defeated || dir == null) {
             return;
         }
         knockbackFrames = 8;
-        double p = 7.0;   // px per frame, 56 px total
+        double p = 7.0;   // px ต่อเฟรม รวม 56 px
         switch (dir) {
             case UP:
                 knockbackX = 0;
@@ -133,7 +132,7 @@ public abstract class Enemy {
         return knockbackFrames > 0;
     }
 
-    // Moves one frame of the knockback; subclasses call this instead of moving while knocked back.
+    // กระเด็นหนึ่งเฟรม
     protected void stepKnockback() {
         if (knockbackFrames > 0) {
             moveBy(knockbackX, knockbackY);
@@ -141,7 +140,7 @@ public abstract class Enemy {
         }
     }
 
-    // Walks in a random direction, picking a new one every WANDER_FRAMES frames.
+    // เดินไปทิศที่สุ่มได้
     protected void wander() {
         if (wanderDirection == null || wanderFramesLeft <= 0) {
             Direction[] directions = Direction.values();
@@ -173,14 +172,14 @@ public abstract class Enemy {
                 && player.getY() < y + SIZE;
     }
 
-    // Center-to-center distance to the Player in px.
+    // ระยะระหว่างจุดกลางตัวศัตรูกับ Player (px)
     protected double distanceTo(Player player) {
         double dx = (player.getX() + Player.getSize() / 2.0) - (x + SIZE / 2.0);
         double dy = (player.getY() + Player.getSize() / 2.0) - (y + SIZE / 2.0);
         return Math.hypot(dx, dy);
     }
 
-    // Moves up to `speed` px toward the Player's position, without overshooting.
+    // เดินเข้าหา Player ไม่เกิน speed px
     protected void moveToward(Player player) {
         double dx = player.getX() - (x + remainderX);
         double dy = player.getY() - (y + remainderY);
@@ -234,7 +233,7 @@ public abstract class Enemy {
         return hp;
     }
 
-    /** HP เริ่มต้นของศัตรูตัวนี้ ใช้คำนวณสัดส่วน HP Bar */
+    /** HP เริ่มต้น ใช้คำนวณ HP Bar */
     public int getMaxHp() {
         return maxHp;
     }

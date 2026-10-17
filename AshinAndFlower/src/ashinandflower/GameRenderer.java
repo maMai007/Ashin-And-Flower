@@ -8,31 +8,26 @@ import java.awt.Rectangle;
 import java.awt.Stroke;
 import java.awt.image.BufferedImage;
 
-/**
- * วาดทุกหน้าจอของเกมลงบน Graphics2D ที่ Game ส่งมาจาก paintComponent
- *
- * คลาสนี้ไม่เก็บสถานะเกมไว้เอง ข้อมูลที่ต้องใช้วาดจะถูกส่งมาเป็นพารามิเตอร์ทุกครั้ง
- * เก็บไว้แค่ AssetLoader (รูปและฟอนต์) กับตำแหน่งปุ่ม
- */
+/** วาดทุกหน้าจอของเกมจากข้อมูลที่ Game ส่งมา */
 public class GameRenderer {
 
-    private static final double BOSS_DRAW_SCALE = 1.5;   // บอสวาดใหญ่กว่ากล่องชน 1.5 เท่า
+    private static final double BOSS_DRAW_SCALE = 1.5;   // บอสวาดใหญ่กว่ากล่องชน
 
-    // ---------- เลย์เอาต์กลางที่ทุกหน้าจอเมนูใช้ร่วมกัน (สลับหน้าแล้วตำแหน่งจะไม่เด้ง) ----------
+    // เลย์เอาต์ที่ทุกหน้าจอเมนูใช้ร่วมกัน
     private static final int MENU_TITLE_Y = 200;
     private static final int MENU_SUBTITLE_Y = 248;
     private static final int MENU_BUTTON_Y = 316;
     private static final int BUTTON_W = 200;
     private static final int BUTTON_H = 56;
     private static final int BUTTON_GAP = 32;
-    // หน้า Level Clear ไม่มีปุ่ม จึงวางข้อความกลางจอแทนการเผื่อที่ให้ปุ่ม
+    // หน้า Level Clear ไม่มีปุ่ม จึงวางข้อความกลางจอ
     private static final int CLEAR_TITLE_Y = 250;
     private static final int CLEAR_SUBTITLE_Y = 298;
-    // ปุ่มเดี่ยวจัดกึ่งกลางจอ = 380, ปุ่มคู่ (200 + 32 + 200 = 432) เริ่มที่ 264
+    // จัดปุ่มเดี่ยวและปุ่มคู่ให้อยู่กลางจอ
     private static final int SINGLE_BUTTON_X = (Level.SCREEN_WIDTH - BUTTON_W) / 2;
     private static final int PAIR_BUTTON_X = (Level.SCREEN_WIDTH - (BUTTON_W * 2 + BUTTON_GAP)) / 2;
 
-    // ---------- ปุ่มบนหน้าจอ (วาดเองด้วย Graphics ไม่ใช้ JButton) ----------
+    // ปุ่มบนหน้าจอ (วาดเอง ไม่ใช้ JButton)
     private static final Rectangle PLAY_BUTTON =
             new Rectangle(SINGLE_BUTTON_X, MENU_BUTTON_Y, BUTTON_W, BUTTON_H);
     private static final Rectangle RETRY_BUTTON =
@@ -48,9 +43,7 @@ public class GameRenderer {
         this.assets = assets;
     }
 
-    // ============================================================
-    //  ตำแหน่งปุ่ม (Game ใช้ตรวจว่าคลิกโดนปุ่มไหน)
-    // ============================================================
+    // ตำแหน่งปุ่ม
 
     public Rectangle getPlayButton() {
         return PLAY_BUTTON;
@@ -68,11 +61,8 @@ public class GameRenderer {
         return WIN_MENU_BUTTON;
     }
 
-    // ============================================================
-    //  การวาดแต่ละหน้าจอ (ทำงานบน EDT)
-    // ============================================================
+    // การวาดแต่ละหน้าจอ
 
-    /** วาดพื้นหลังของหน้าจอเมนูตามรูปต้นฉบับ (ใช้ภาพเดียวกันทุกหน้า) */
     private void drawMenuBackground(Graphics2D g2) {
         g2.drawImage(assets.getMenuBackground(), 0, 0, Level.SCREEN_WIDTH, Level.SCREEN_HEIGHT, null);
     }
@@ -86,23 +76,21 @@ public class GameRenderer {
 
     public void drawGameplay(Graphics2D g2, Player player, Level currentLevel,
             int frameCounter, int attackFlashFrames, Direction attackFlashFacing) {
-        // ฉากของ Level
         g2.drawImage(assets.getLevelBackground(currentLevel.getLevelNumber()),
                 0, 0, Level.SCREEN_WIDTH, Level.SCREEN_HEIGHT, null);
 
-        // ดอกไม้ (วนด้วย index เพราะ game thread อาจเพิ่ม Spirit Flower ระหว่างที่ EDT กำลังวาด)
-        // ดอกไม้ลอยขึ้นลงตามคลื่นไซน์ และมีวงสีรอบดอก
+        // ดอกไม้ (วนด้วย index เพราะ game thread อาจเพิ่มดอกระหว่างวาด)
         boolean anyFlowerCollected = false;
         for (int i = 0; i < currentLevel.getFlowers().size(); i++) {
             Flower flower = currentLevel.getFlowers().get(i);
-            // บวก getX() เข้าไปให้แต่ละดอกลอยไม่พร้อมกัน
+            // ลอยขึ้นลง แต่ละดอกไม่พร้อมกัน
             int bob = (int) (Math.sin((frameCounter + flower.getX()) * 0.08) * 4);
             int cx = flower.getX() + Flower.getSize() / 2;
             int cy = flower.getY() + bob + Flower.getSize() / 2;
 
             if (flower.isCollected()) {
                 anyFlowerCollected = true;
-                // เพิ่งถูกเก็บ: ไม่วาดดอก แต่วาดวงแหวนสีเหลืองขยายออกแล้วจางหาย (มีเฉพาะ Spirit Flower)
+                // เพิ่งถูกเก็บ: วาดวงแหวนขยายออกแล้วจางหาย
                 if (flower.isPickupFlashing()) {
                     int f = flower.getPickupFlashFrames();   // 24 ลงไป 0
                     int r = 20 + (24 - f) * 2;               // ขยายจาก 20 เป็น 68
@@ -116,7 +104,7 @@ public class GameRenderer {
                 continue;
             }
 
-            // วงสีโปร่งวงเดียวรอบดอก (ไม่กะพริบ) ลอยตามดอก
+            // วงสีโปร่งรอบดอก
             int glowR = 32;
             if (flower.getType() == FlowerType.SPIRIT) {
                 g2.setColor(new Color(220, 180, 255, 70));
@@ -131,13 +119,12 @@ public class GameRenderer {
                     Flower.getSize(), Flower.getSize(), null);
         }
 
-        // ศัตรู
         for (int i = 0; i < currentLevel.getEnemies().size(); i++) {
             Enemy enemy = currentLevel.getEnemies().get(i);
             if (enemy.isDefeated()) {
                 continue;
             }
-            // บอสวาดใหญ่กว่าศัตรูทั่วไป แต่กล่องชนยังเท่ากับ Enemy.getSize() เหมือนเดิม
+            // บอสวาดใหญ่กว่า แต่กล่องชนเท่าเดิม
             int drawSize = (enemy instanceof SpiritGuardian)
                     ? (int) Math.round(Enemy.getSize() * BOSS_DRAW_SCALE) : Enemy.getSize();
             int offset = (drawSize - Enemy.getSize()) / 2;
@@ -152,13 +139,13 @@ public class GameRenderer {
                     enemy.getHp(), enemy.getMaxHp(), new Color(226, 90, 90));
         }
 
-        // รอยฟัน: เส้นโค้งหนาที่ขอบนอกของระยะดาบ วาดก่อนตัว Player เพื่อไม่ให้บังตัวละคร
+        // รอยฟัน (วาดก่อน Player เพื่อไม่ให้บังตัว)
         if (attackFlashFrames > 0) {
             int cx = player.getX() + Player.getSize() / 2;
             int cy = player.getY() + Player.getSize() / 2;
-            int r = player.getSword().getRange() - 8;      // ร่นเข้ามานิดให้ดูเป็นรอยดาบ
+            int r = player.getSword().getRange() - 8;      // ร่นเข้ามาจากระยะดาบ
             int alpha = 220 * attackFlashFrames / 8;       // จางลงตามเวลา
-            // drawArc วัดมุมทวนเข็มนาฬิกาจากทิศขวา จึงเริ่มที่ 45 องศาก่อนถึงทิศที่หัน
+            // มุมเริ่มของ drawArc (ทวนเข็มนาฬิกาจากทิศขวา)
             int startAngle;
             switch (attackFlashFacing) {
                 case UP -> startAngle = 45;
@@ -173,33 +160,33 @@ public class GameRenderer {
             g2.setStroke(oldStroke);
         }
 
-        // Player และทิศที่หันอยู่ (หลังโดนโจมตีจะกะพริบ: ข้ามการวาดทุก ๆ 4 เฟรมสลับกัน)
+        // Player (กะพริบหลังโดนโจมตี)
         boolean blinkHidden = player.isHitFlashing() && (frameCounter / 4) % 2 == 0;
         if (!blinkHidden) {
             g2.drawImage(assets.getPlayerSprite(player.getFacing()), player.getX(), player.getY(),
                     Player.getSize(), Player.getSize(), null);
         }
-        // หลังได้รับการฟื้น แถบ HP เป็นเขียวสว่าง
+        // แถบ HP สว่างขึ้นหลังฟื้น HP
         Color playerHpColor = player.isHealFlashing() ? new Color(140, 255, 150) : new Color(110, 220, 130);
         drawHpBar(g2, player.getX(), player.getY() - 10, Player.getSize(),
                 player.getHp(), player.getMaxHp(), playerHpColor);
 
         // HUD: ชื่อ Level มุมซ้ายบน
         g2.setFont(assets.getBodyFont());
-        // เงาใต้ตัวอักษรให้ HUD อ่านออกบนพื้นหลังที่มีลวดลาย
+        // เงาใต้ตัวอักษร
         g2.setColor(new Color(0, 0, 0, 170));
         g2.drawString(currentLevel.getDisplayName(), 21, 37);
         g2.setColor(Color.WHITE);
         g2.drawString(currentLevel.getDisplayName(), 20, 36);
 
-        // ข้อความสอนเฉพาะ Level 1 หายไปถาวรเมื่อเก็บดอกแรกได้
+        // ข้อความสอนใน Level 1 จนกว่าจะเก็บดอกแรก
         if (currentLevel.getLevelNumber() == Game.FIRST_LEVEL && !anyFlowerCollected) {
             drawCenteredText(g2, "เดินทับดอกไม้เพื่อฟื้น HP", new Font("Tahoma", Font.PLAIN, 15),
                     new Color(255, 255, 255, 200), 64);
         }
     }
 
-    /** หน้า Level Clear: พื้นหลังเมนู กับข้อความ Level Clear และชื่อ Level ถัดไปกลางจอ */
+    /** หน้า Level Clear พร้อมเลข Level ถัดไป */
     public void drawLevelClear(Graphics2D g2, int currentLevelNumber) {
         drawMenuBackground(g2);
         drawCenteredText(g2, "Level Clear", assets.getTitleFont(), new Color(226, 214, 255), CLEAR_TITLE_Y);
@@ -223,9 +210,9 @@ public class GameRenderer {
         drawButton(g2, WIN_MENU_BUTTON, assets.getButtonMenu(), "Main Menu");
     }
 
-    // ---------- ตัวช่วยวาด ----------
+    // ตัวช่วยวาด
 
-    /** วาดปุ่มจากรูป ข้อความอยู่ในรูปแล้วจึงไม่ต้องวาดตัวอักษรทับ */
+    /** วาดปุ่มจากรูป (label ไม่ได้ใช้ เพราะข้อความอยู่ในรูปแล้ว) */
     private void drawButton(Graphics2D g2, Rectangle button, BufferedImage image, String label) {
         g2.drawImage(image, button.x, button.y, button.width, button.height, null);
     }
@@ -249,7 +236,7 @@ public class GameRenderer {
         g2.fillRect(x, y, filled, height);
     }
 
-    /** เลือก sprite ตามชนิดของศัตรู (ใช้ Polymorphism ผ่าน instanceof) */
+    /** เลือก sprite ตามชนิดของศัตรู */
     private BufferedImage enemySprite(Enemy enemy) {
         if (enemy instanceof SpiritGuardian) {
             return assets.getSpiritGuardianSprite();

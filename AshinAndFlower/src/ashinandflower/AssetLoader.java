@@ -10,38 +10,31 @@ import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.Clip;
 
-/**
- * โหลดและเก็บไฟล์ทั้งหมดของเกม (รูป ฟอนต์ เสียง) จากโฟลเดอร์ res
- *
- * Game สร้างคลาสนี้หนึ่งตัวตอนเริ่มเกม แล้วขอไฟล์ผ่าน getter
- * ถ้ารูปหรือฟอนต์หายจะ throw ทันทีตอนสร้าง ส่วนเสียงที่ใช้ไม่ได้จะเป็น null
- */
+/** โหลดและเก็บรูป ฟอนต์ และเสียงทั้งหมดของเกมจากโฟลเดอร์ res */
 public class AssetLoader {
 
-    // ---------- รูปภาพ ----------
     // ภาพเดียวใช้ร่วมกันทุกหน้าจอเมนู
     private final BufferedImage menuBackground;
-    // ฉากของแต่ละ Level เก็บตาม index 1 ถึง levelCount (ช่อง 0 ไม่ใช้ เพื่อให้เลข Level ตรงกับ index)
+    // ฉากของแต่ละ Level ใช้ index 1 ถึง levelCount (ช่อง 0 ว่าง)
     private final BufferedImage[] levelBackgrounds;
-    // sprite ของ Player เก็บตามทิศ ใช้ Direction.ordinal() เป็น index
+    // sprite ของ Player แยกตามทิศ (index = Direction.ordinal())
     private final BufferedImage[] playerSprites = new BufferedImage[Direction.values().length];
     private final BufferedImage wanderingGhostSprite;
     private final BufferedImage shadowGhostSprite;
     private final BufferedImage spiritGuardianSprite;
     private final BufferedImage flowerNormalSprite;
     private final BufferedImage flowerSpiritSprite;
-    // รูปพื้นหลังปุ่ม มีข้อความอยู่ในรูปแล้ว จึงไม่ต้องวาดตัวอักษรทับ
+    // รูปปุ่มที่มีข้อความอยู่ในรูปแล้ว
     private final BufferedImage buttonPlay;
     private final BufferedImage buttonRetry;
     private final BufferedImage buttonMenu;
-    // ฟอนต์พิกเซลต้นแบบ ขนาด 1 แล้วค่อย deriveFont ตามขนาดที่ใช้
+    // ฟอนต์ต้นแบบ ใช้ deriveFont ตอนเรียกใช้
     private Font pixelFont;
 
-    // ---------- เสียง ----------
-    // เพลงพื้นหลังเพลงเดียว (โหลดไม่ได้ = null เกมจะเงียบแต่เล่นต่อได้)
+    // เพลงพื้นหลัง (null ถ้าโหลดไม่ได้)
     private Clip bgmClip;
 
-    /** โหลดไฟล์ทั้งหมด levelCount คือจำนวน Level ที่มีฉากให้โหลด (bg_level1.png ถึง bg_levelN.png) */
+    /** โหลดไฟล์ทั้งหมด levelCount คือจำนวนฉาก Level */
     public AssetLoader(int levelCount) {
         menuBackground = loadImage("bg_menu.png");
         levelBackgrounds = new BufferedImage[levelCount + 1];
@@ -64,28 +57,28 @@ public class AssetLoader {
         bgmClip = loadClip("bgm.wav");
     }
 
-    // ============================================================
-    //  การหาไฟล์และโหลดไฟล์
-    // ============================================================
+    // การหาไฟล์และโหลดไฟล์
 
-    /**
-     * หาไฟล์ใน res/<folder> โดยไล่ขึ้นจากที่อยู่ของไฟล์ .class (เช่น bin -> AshinAndFlower)
-     * วิธีนี้ทำงานได้ไม่ว่าจะสั่งรันจากโฟลเดอร์ไหน ถ้าไม่เจอคืน null
-     */
+    /** หา res/<folder>/<fileName> โดยไล่ขึ้นจากโฟลเดอร์ .class และโฟลเดอร์ที่สั่งรัน ไม่เจอคืน null */
     private File findResFile(String folder, String fileName) throws URISyntaxException {
-        File dir = new File(getClass().getProtectionDomain()
+        File classDir = new File(getClass().getProtectionDomain()
                 .getCodeSource().getLocation().toURI()).getAbsoluteFile();
-        for (int i = 0; i < 5 && dir != null; i++) {
-            File candidate = new File(dir, "res/" + folder + "/" + fileName);
-            if (candidate.isFile()) {
-                return candidate;
+        File runDir = new File("").getAbsoluteFile();
+
+        File[] startPoints = { classDir, runDir };
+        for (File start : startPoints) {
+            File dir = start;
+            for (int i = 0; i < 5 && dir != null; i++) {
+                File candidate = new File(dir, "res/" + folder + "/" + fileName);
+                if (candidate.isFile()) {
+                    return candidate;
+                }
+                dir = dir.getParentFile();
             }
-            dir = dir.getParentFile();
         }
         return null;
     }
 
-    /** โหลดไฟล์รูปจาก res/images */
     private BufferedImage loadImage(String fileName) {
         try {
             File file = findResFile("images", fileName);
@@ -98,7 +91,6 @@ public class AssetLoader {
         throw new RuntimeException("ไม่พบไฟล์รูป: " + fileName);
     }
 
-    /** โหลดไฟล์ฟอนต์จาก res/fonts */
     private Font loadFont(String fileName) {
         try {
             File file = findResFile("fonts", fileName);
@@ -111,12 +103,7 @@ public class AssetLoader {
         throw new RuntimeException("ไม่พบไฟล์ฟอนต์: " + fileName);
     }
 
-    /**
-     * โหลดไฟล์เสียงจาก res/audio เป็น Clip
-     *
-     * ใช้ javax.sound.sampled.Clip เพราะ java.applet.AudioClip ถูกถอดออกจาก JDK 24 แล้ว
-     * ถ้าเครื่องไม่มีอุปกรณ์เสียงหรือเปิดไฟล์ไม่ได้ จะคืน null แล้วเกมเล่นต่อแบบไม่มีเสียง
-     */
+    /** โหลดเสียงจาก res/audio เป็น Clip เล่นไม่ได้คืน null */
     private Clip loadClip(String fileName) {
         try {
             File file = findResFile("audio", fileName);
@@ -127,14 +114,12 @@ public class AssetLoader {
                 return clip;
             }
         } catch (Exception e) {
-            // เช่น เครื่องไม่มีลำโพง/การ์ดเสียง: ข้ามไปเล่นแบบไม่มีเสียง
+            // ไม่มีอุปกรณ์เสียง: เล่นต่อแบบไม่มีเสียง
         }
         return null;
     }
 
-    // ============================================================
-    //  Getter
-    // ============================================================
+    // Getter
 
     public BufferedImage getMenuBackground() {
         return menuBackground;
@@ -185,7 +170,7 @@ public class AssetLoader {
         return bgmClip;
     }
 
-    // ขนาดต้องเป็นจำนวนเท่าของ 8 เพราะ Press Start 2P ออกแบบบนกริด 8px ถ้าไม่ลงตัวพิกเซลจะเบี้ยว
+    // ขนาดฟอนต์ต้องเป็นจำนวนเท่าของ 8 ตามกริดของ Press Start 2P
     public Font getTitleFont() {
         return pixelFont.deriveFont(Font.PLAIN, 32f);
     }

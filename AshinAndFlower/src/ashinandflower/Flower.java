@@ -1,16 +1,12 @@
 package ashinandflower;
 
-/**
- * ดอกไม้ในเกม ใช้คลาสเดียวทั้งสองประเภทตาม Class Analysis
- * NORMAL ฟื้น HP ให้ Player ใน Level 1-2
- * SPIRIT ปรากฏหลัง SpiritGuardian ถูกกำจัด เก็บแล้วนำไปสู่ Win Flow (ไม่เปลี่ยน Game State เอง)
- */
+/** ดอกไม้ NORMAL ฟื้น HP ส่วน SPIRIT เป็นเป้าหมายของ Level สุดท้าย */
 public class Flower {
 
     // ขนาดกล่องเก็บของดอกไม้ (px)
     private static final int SIZE = 48;
 
-    // ค่า Balance (อนุมัติแล้วในแผน ⑩ §3.2)
+    // ค่า Balance
     private static final int NORMAL_HEAL_AMOUNT = 25;
 
     private final int x;
@@ -18,7 +14,7 @@ public class Flower {
     private final FlowerType type;
     private final int healAmount;
     private boolean collected;
-    // จำนวนเฟรมที่เหลือของวงแหวนตอนถูกเก็บ (Game อ่านไปวาด)
+    // เฟรมที่เหลือของวงแหวนตอนถูกเก็บ
     private int pickupFlashFrames;
 
     public Flower(int x, int y, FlowerType type) {
@@ -30,10 +26,7 @@ public class Flower {
         this.collected = false;
     }
 
-    /**
-     * Player เดินเข้ามาเก็บ ไม่ต้องกดปุ่มเก็บ
-     * ดอกหนึ่งดอกเก็บได้ครั้งเดียว และ Player ที่ตายแล้วเก็บไม่ได้
-     */
+    /** เก็บดอกไม้ (ดอกหนึ่งเก็บได้ครั้งเดียว) */
     public void collect(Player player) {
         if (collected || player == null || player.isDead()) {
             return;
@@ -42,7 +35,7 @@ public class Flower {
             player.heal(healAmount);
         }
         collected = true;
-        // วงแหวนตอนเก็บมีเฉพาะ Spirit Flower ดอก Normal หายไปเลย
+        // วงแหวนตอนเก็บมีเฉพาะ Spirit Flower
         if (type == FlowerType.SPIRIT) {
             pickupFlashFrames = 24;
         }
@@ -52,7 +45,7 @@ public class Flower {
         return pickupFlashFrames > 0;
     }
 
-    /** นับถอยหลังเอฟเฟกต์หนึ่งเฟรม (Level เรียกทุกเฟรม แม้ดอกจะถูกเก็บไปแล้ว) */
+    /** นับถอยหลังเอฟเฟกต์หนึ่งเฟรม */
     public void tickEffects() {
         if (pickupFlashFrames > 0) {
             pickupFlashFrames--;
@@ -63,7 +56,6 @@ public class Flower {
         return pickupFlashFrames;
     }
 
-    /** ตรวจว่า Player ทับดอกไม้อยู่หรือไม่ ใช้ตอน Level ตรวจการเก็บในแต่ละเฟรม */
     public boolean isTouching(Player player) {
         if (player == null) {
             return false;

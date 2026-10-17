@@ -12,31 +12,17 @@ import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 
-/**
- * หน้าต่างเกมและตัวควบคุม Game Flow ทั้งหมด
- *
- * ตามเอกสาร ⑧ GUI ไม่มีคลาสแยก คลาสนี้จึงรับหน้าที่ 4 อย่างพร้อมกัน
- * 1) เป็น JPanel ที่ส่งข้อมูลเกมให้ GameRenderer วาดทุกหน้าจอ
- * 2) เป็น game thread ที่เดินลูป 60 FPS
- * 3) เป็น state machine ของ GameState
- * 4) อ่าน Input จาก InputHandler แล้วนำไปใช้ในแต่ละเฟรม
- *
- * เรื่อง Thread: Swing ประมวลผล Event ทั้งหมดบน Event Dispatch Thread (EDT)
- * ถ้าเอา game loop ไปวนบน EDT หน้าจอจะค้างเพราะ EDT ไม่ว่างไปวาดภาพ
- * เกมนี้จึงสร้าง thread ของตัวเองหนึ่งเส้นสำหรับ update + repaint
- * ส่วน field ที่ถูกเขียนจาก EDT (ปุ่มที่กด, การคลิก) อยู่ใน InputHandler และเป็น volatile
- * เพื่อให้ game thread มองเห็นค่าล่าสุดเสมอ
- */
+/** หน้าต่างเกม game loop และ state machine ของเกม */
 public class Game extends JPanel implements Runnable {
 
-    // ---------- ค่าคงที่ของลูปและหน้าจอ ----------
+    // ค่าคงที่ของลูปและหน้าจอ
     private static final int FPS = 60;
     private static final long FRAME_TIME_MS = 1000 / FPS;   // 16 ms
-    private static final int LEVEL_CLEAR_FRAMES = 2 * FPS;  // แสดงหน้า Level Clear 2 วินาที
-    static final int FIRST_LEVEL = 1;   // GameRenderer ใช้ตัดสินว่าจะแสดงข้อความสอนหรือไม่
+    private static final int LEVEL_CLEAR_FRAMES = 2 * FPS;  // 2 วินาที
+    static final int FIRST_LEVEL = 1;   // ใช้ตัดสินการแสดงข้อความสอน
     private static final int LAST_LEVEL = 3;
 
-    // ---------- สถานะเกม ----------
+    // สถานะเกม
     private GameState state;
     private Player player;
     private Level currentLevel;
@@ -44,31 +30,26 @@ public class Game extends JPanel implements Runnable {
     private int levelClearFrames;
     private String gameOverReason;
 
-    // ---------- เอฟเฟกต์ภาพตอนต่อสู้ (หน่วยเป็นเฟรม นับถอยหลังใน updatePlaying) ----------
-    private int frameCounter;              // นับเฟรมไปเรื่อย ๆ ใช้ทำจังหวะกะพริบของ Player
+    // เอฟเฟกต์ภาพ (หน่วยเป็นเฟรม)
+    private int frameCounter;              // นับเฟรมสะสม ใช้ทำจังหวะกะพริบและลอย
     private int attackFlashFrames;         // เวลาที่เหลือของรอยฟัน
-    private Direction attackFlashFacing;   // ทิศที่ฟัน ณ ตอนคลิก ใช้วาดรอยฟันให้ตรงทิศ
+    private Direction attackFlashFacing;   // ทิศที่ฟัน ใช้วาดรอยฟัน
 
-    // ---------- ตัวแปรของ thread ----------
-    // running ถูกอ่านโดย game thread และเขียนโดย EDT จึงต้องเป็น volatile
+    // thread (running เป็น volatile เพราะ EDT เขียน)
     private volatile boolean running;
     private Thread gameThread;
 
-    // ---------- Input จากคีย์บอร์ดและเมาส์ ----------
     private final InputHandler input;
 
-    // ---------- ไฟล์รูป ฟอนต์ และเสียง ----------
     private final AssetLoader assets;
 
-    // ---------- ตัววาดหน้าจอ ----------
     private final GameRenderer renderer;
 
     public Game() {
         assets = new AssetLoader(LAST_LEVEL);
         renderer = new GameRenderer(assets);
 
-        // เพลงพื้นหลังเล่นวนตลอดตั้งแต่หน้าเมนูจนปิดเกม (โหลดไม่ได้ = null เกมจะเงียบแต่เล่นต่อได้)
-        // Clip เล่นเสียงบน thread ของตัวเอง จึงไม่ต้องสร้าง thread เพิ่ม
+        // เล่นเพลงพื้นหลังวนตลอด (null = ไม่มีเสียง)
         Clip bgmClip = assets.getBgmClip();
         if (bgmClip != null) {
             bgmClip.loop(Clip.LOOP_CONTINUOUSLY);
@@ -86,16 +67,14 @@ public class Game extends JPanel implements Runnable {
         gameOverReason = "";
     }
 
-    // ============================================================
-    //  Thread: เริ่ม หยุด และตัวลูปหลัก
-    // ============================================================
+    // Thread
 
-    /** สร้างหน้าต่างเกมและสตาร์ท game thread (เรียกจาก main บน EDT) */
+    /** สร้างหน้าต่างและสตาร์ท game thread */
     public void startGame() {
         JFrame frame = new JFrame("Ashin & Flower");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setResizable(false);
-        // ตอนกดปิดหน้าต่าง ให้หยุดลูปและปิดเพลงก่อนโปรแกรมจบ
+        // ปิดหน้าต่างแล้วหยุดลูปและปิดเพลง
         frame.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
@@ -110,16 +89,12 @@ public class Game extends JPanel implements Runnable {
 
         running = true;
         gameThread = new Thread(this, "GameThread");
-        // เป็น daemon thread เพื่อให้ปิดหน้าต่างแล้ว thread ไม่ค้างอยู่เบื้องหลัง
+        // daemon เพื่อไม่ให้ thread ค้างหลังปิดหน้าต่าง
         gameThread.setDaemon(true);
         gameThread.start();
     }
 
-    /**
-     * ลูปหลักของเกม ทำงานบน game thread ไม่ใช่ EDT
-     * หนึ่งรอบ = update ตรรกะหนึ่งเฟรม แล้วสั่งวาด จากนั้นนอนรอให้ครบ 16 ms
-     * repaint() เรียกจาก thread ไหนก็ได้ เพราะ Swing จะไปเข้าคิววาดบน EDT ให้เอง
-     */
+    /** ลูปหลักบน game thread: update แล้ว repaint ทุก 16 ms */
     @Override
     public void run() {
         while (running) {
@@ -134,7 +109,7 @@ public class Game extends JPanel implements Runnable {
                 try {
                     Thread.sleep(sleepTime);
                 } catch (InterruptedException e) {
-                    // ถูกสั่งหยุดระหว่างนอน: คืนสถานะ interrupt แล้วออกจากลูป
+                    // ถูก interrupt: ออกจากลูป
                     Thread.currentThread().interrupt();
                     running = false;
                 }
@@ -142,7 +117,7 @@ public class Game extends JPanel implements Runnable {
         }
     }
 
-    /** สั่งให้ game thread หยุดอย่างปลอดภัย (ไม่ใช้ Thread.stop ซึ่ง deprecated) */
+    /** หยุด game thread และปิดเพลง */
     public void stopGame() {
         running = false;
         Clip bgmClip = assets.getBgmClip();
@@ -152,11 +127,9 @@ public class Game extends JPanel implements Runnable {
         }
     }
 
-    // ============================================================
-    //  State machine
-    // ============================================================
+    // การสลับหน้าจอ
 
-    /** อัปเดตหนึ่งเฟรม แยกตามหน้าจอปัจจุบัน (⑧ §8 รับ Input ตามหน้าจอเท่านั้น) */
+    /** อัปเดตหนึ่งเฟรมตามหน้าจอปัจจุบัน */
     public void update() {
         switch (state) {
             case MAIN_MENU -> updateMainMenu();
@@ -167,7 +140,7 @@ public class Game extends JPanel implements Runnable {
         }
     }
 
-    /** หน้าจอปัจจุบัน (InputHandler ใช้ตัดสินว่าคลิกนับเป็นการโจมตีหรือไม่) */
+    /** หน้าจอปัจจุบัน */
     public GameState getState() {
         return state;
     }
@@ -181,17 +154,16 @@ public class Game extends JPanel implements Runnable {
     }
 
     private void updatePlaying() {
-        // 0) นับถอยหลังเอฟเฟกต์กะพริบของ Player และ cooldown ของดาบ
+        // 0) นับถอยหลังเอฟเฟกต์และ cooldown
         player.tick();
         player.getSword().tick();
 
-        // นับเวลาของเอฟเฟกต์ภาพ
         frameCounter++;
         if (attackFlashFrames > 0) {
             attackFlashFrames--;
         }
 
-        // 1) เดินตามปุ่มที่กดค้างอยู่ แล้วกันไม่ให้ออกนอกกรอบพื้นที่เล่น
+        // 1) เดินตามปุ่มที่กดและกันออกนอกกรอบ
         int dx = 0;
         int dy = 0;
         if (input.isLeftPressed()) {
@@ -212,8 +184,7 @@ public class Game extends JPanel implements Runnable {
                     Level.PLAY_RIGHT - Player.getSize(), Level.PLAY_BOTTOM - Player.getSize());
         }
 
-        // 2) โจมตีหนึ่งครั้งต่อหนึ่งคลิก จึงเคลียร์ flag ทันทีหลังใช้
-        //    ฟันจริงเฉพาะตอนดาบพร้อม และแสดงรอยฟันเฉพาะตอนที่ฟันจริงเท่านั้น
+        // 2) ฟันหนึ่งครั้งต่อคลิก เมื่อดาบพร้อม
         if (input.isAttackRequested()) {
             input.clearAttackRequest();
             if (player.getSword().isReady()) {
@@ -227,7 +198,7 @@ public class Game extends JPanel implements Runnable {
         // 3) ให้ Level เดินศัตรูและเก็บดอกไม้
         currentLevel.update(player);
 
-        // 4) ตรวจเงื่อนไขจบเฟรม: ผ่านด่านก่อน แล้วค่อยแพ้
+        // 4) ตรวจผ่านด่านก่อน แล้วค่อยตรวจแพ้
         if (currentLevel.checkLevelClear()) {
             if (currentLevelNumber == LAST_LEVEL) {
                 win();
@@ -240,9 +211,9 @@ public class Game extends JPanel implements Runnable {
         }
     }
 
-    /** หน้า Level Clear ไม่รับ Input และเปลี่ยน Level เองเมื่อครบเวลา (⑧ §2) */
+    /** รอหน้า Level Clear แล้วไปด่านถัดไป */
     private void updateLevelClear() {
-        // ให้ cooldown ดาบและเอฟเฟกต์กะพริบเดินต่อ ไม่งั้นจะค้างข้ามไปด่านถัดไป
+        // ให้ cooldown และเอฟเฟกต์เดินต่อ
         player.tick();
         player.getSword().tick();
         input.clearClick();
@@ -271,14 +242,14 @@ public class Game extends JPanel implements Runnable {
         input.clearAttackRequest();
     }
 
-    /** เริ่มเกมใหม่ทั้งหมดจาก Level 1 และรีเซ็ตความคืบหน้า (⑧ ปุ่ม Play) */
+    /** เริ่มเกมใหม่จาก Level 1 */
     public void newGame() {
         player = new Player();
         gameOverReason = "";
         changeLevel(FIRST_LEVEL);
     }
 
-    /** เล่น Level ที่แพ้ใหม่ตั้งแต่ต้น HP กลับเป็นเต็ม ศัตรูและดอกไม้กลับสู่สถานะเริ่มต้น */
+    /** เล่น Level ปัจจุบันใหม่ด้วย HP เต็ม */
     public void retry() {
         player = new Player();
         gameOverReason = "";
@@ -294,12 +265,12 @@ public class Game extends JPanel implements Runnable {
         state = GameState.MAIN_MENU;
     }
 
-    /** สร้าง Level ใหม่ ตั้งตำแหน่งเริ่มต้นของ Player แล้วเข้าสู่ Gameplay */
+    /** สร้าง Level ใหม่และวาง Player ที่จุดเริ่ม */
     private void changeLevel(int levelNumber) {
         currentLevelNumber = levelNumber;
         currentLevel = new Level(levelNumber);
         player.setPosition(currentLevel.getPlayerStartX(), currentLevel.getPlayerStartY());
-        // ล้างรอยฟันค้างจากด่านก่อน (ใช้ร่วมกันทั้ง New Game, เปลี่ยนด่าน และ Retry)
+        // ล้างรอยฟันค้างจากด่านก่อน
         attackFlashFrames = 0;
         state = GameState.PLAYING;
     }
@@ -313,9 +284,7 @@ public class Game extends JPanel implements Runnable {
         state = GameState.WIN;
     }
 
-    // ============================================================
-    //  การวาดหน้าจอ (ทำงานบน EDT)
-    // ============================================================
+    // การวาดหน้าจอ
 
     @Override
     protected void paintComponent(Graphics g) {
@@ -324,7 +293,7 @@ public class Game extends JPanel implements Runnable {
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_OFF);
 
-        // ส่งเฉพาะข้อมูลที่หน้าจอนั้นใช้วาด ให้ GameRenderer
+        // ส่งข้อมูลให้ GameRenderer วาด
         switch (state) {
             case MAIN_MENU -> renderer.drawMainMenu(g2);
             case PLAYING -> renderer.drawGameplay(g2, player, currentLevel,
@@ -335,12 +304,10 @@ public class Game extends JPanel implements Runnable {
         }
     }
 
-    // ============================================================
-    //  Entry point
-    // ============================================================
+    // จุดเริ่มต้นโปรแกรม
 
     public static void main(String[] args) {
-        // สร้าง GUI บน EDT ตามกติกาของ Swing แล้วค่อยสตาร์ท game thread
+        // สร้าง GUI บน EDT
         SwingUtilities.invokeLater(() -> new Game().startGame());
     }
 }

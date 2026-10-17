@@ -2,11 +2,11 @@ package ashinandflower;
 
 public final class ShadowGhost extends Enemy {
 
-    // Provisional balance values.
+    // ค่า Balance ชั่วคราว
     private static final int HP = 60;
     private static final int DAMAGE = 12;
     private static final double SPEED = 2;
-    // Farther than WanderingGhost (200) because ShadowGhost is the more aggressive enemy.
+    // ไล่จากระยะไกลกว่า WanderingGhost
     private static final double FOLLOW_RANGE = 280;
 
     public ShadowGhost(int x, int y) {
@@ -19,12 +19,12 @@ public final class ShadowGhost extends Enemy {
         tickEffects();
         if (isKnockedBack()) {
             stepKnockback();
-            return;              // ระหว่างกระเด็น ไม่เดินเข้าหาและไม่ทำ contact damage
+            return;              // ระหว่างกระเด็นไม่เดินและไม่ทำดาเมจ
         }
         if (isDefeated() || player == null || player.isDead()) {
             return;
         }
-        // เดินสุ่มไปเรื่อย ๆ จนกว่า Player จะเข้าใกล้ จึงค่อยไล่
+        // ไล่ Player ถ้าอยู่ใกล้ ไม่งั้นเดินสุ่ม
         if (distanceTo(player) <= FOLLOW_RANGE) {
             moveToward(player);
         } else {

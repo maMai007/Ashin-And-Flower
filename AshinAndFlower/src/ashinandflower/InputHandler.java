@@ -6,18 +6,13 @@ import java.awt.event.KeyListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 
-/**
- * รับ Input จากคีย์บอร์ดและเมาส์ แล้วเก็บไว้ให้ Game อ่านในแต่ละเฟรม
- *
- * เมธอดของ Listener ทำงานบน EDT ส่วน Game อ่านค่าบน game thread
- * field ทุกตัวจึงประกาศเป็น volatile เพื่อให้ game thread มองเห็นค่าล่าสุดเสมอ
- */
+/** รับ Input จากคีย์บอร์ดและเมาส์ให้ Game อ่านทุกเฟรม */
 public class InputHandler implements KeyListener, MouseListener {
 
-    // ใช้ถามว่าตอนนี้อยู่หน้าจอไหน (คลิกนับเป็นการโจมตีเฉพาะตอนกำลังเล่น)
+    // ใช้ถามว่าอยู่หน้าจอไหน
     private final Game game;
 
-    // ---------- Input ที่ EDT เขียนและ game thread อ่าน ----------
+    // volatile เพราะ EDT เขียนและ game thread อ่าน
     private volatile boolean upPressed;
     private volatile boolean downPressed;
     private volatile boolean leftPressed;
@@ -31,9 +26,7 @@ public class InputHandler implements KeyListener, MouseListener {
         this.game = game;
     }
 
-    // ============================================================
-    //  Getter และเมธอดเคลียร์ค่า (เรียกจาก game thread)
-    // ============================================================
+    // Getter และเมธอดเคลียร์ค่า
 
     public boolean isUpPressed() {
         return upPressed;
@@ -55,17 +48,17 @@ public class InputHandler implements KeyListener, MouseListener {
         return attackRequested;
     }
 
-    /** ใช้คำขอโจมตีไปแล้ว (หนึ่งคลิกต่อการโจมตีหนึ่งครั้ง) */
+    /** ล้างคำขอโจมตี */
     public void clearAttackRequest() {
         attackRequested = false;
     }
 
-    /** ทิ้งคลิกที่ค้างอยู่ เรียกท้ายเฟรมเพื่อไม่ให้คลิกเดิมไปโดนปุ่มของหน้าจอถัดไป */
+    /** ทิ้งคลิกที่ค้างอยู่ */
     public void clearClick() {
         clickPending = false;
     }
 
-    /** คืน true หนึ่งครั้งเมื่อมีคลิกค้างอยู่และตกในกรอบปุ่มที่ส่งมา */
+    /** คืน true ถ้าคลิกที่ค้างอยู่โดนปุ่มนี้ */
     public boolean takeClick(Rectangle button) {
         if (!clickPending) {
             return false;
@@ -73,9 +66,7 @@ public class InputHandler implements KeyListener, MouseListener {
         return button.contains(clickX, clickY);
     }
 
-    // ============================================================
-    //  Event handling (ทำงานบน EDT เขียนลง field ที่เป็น volatile เท่านั้น)
-    // ============================================================
+    // รับ Event (ทำงานบน EDT)
 
     @Override
     public void keyPressed(KeyEvent e) {
@@ -89,7 +80,7 @@ public class InputHandler implements KeyListener, MouseListener {
 
     @Override
     public void keyTyped(KeyEvent e) {
-        // ไม่ใช้ แต่ต้อง override ตามสัญญาของ KeyListener
+        // ไม่ใช้
     }
 
     private void setKey(int keyCode, boolean pressed) {
@@ -116,7 +107,7 @@ public class InputHandler implements KeyListener, MouseListener {
 
     @Override
     public void mouseClicked(MouseEvent e) {
-        // ใช้ mousePressed แทนเพื่อให้โจมตีตอบสนองทันทีที่กด
+        // ใช้ mousePressed แทน
     }
 
     @Override

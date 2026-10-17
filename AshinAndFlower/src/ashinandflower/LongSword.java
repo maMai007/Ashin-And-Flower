@@ -2,14 +2,10 @@ package ashinandflower;
 
 import java.util.List;
 
-/**
- * อาวุธชิ้นเดียวของ Player
- * โจมตีศัตรูที่อยู่ใน "กรวย 90 องศาด้านหน้า" (รัศมี 88 px) ตามทิศที่ Player หันอยู่
- * มี Attack Cooldown 24 เฟรม (0.4 วินาที) ระหว่างการฟันแต่ละครั้ง
- */
+/** ดาบของ Player ฟันศัตรูในกรวย 90 องศาด้านหน้า */
 public class LongSword {
 
-    // ค่า Balance (อนุมัติแล้วในแผน ⑩ §3.1)
+    // ค่า Balance
     private static final int DEFAULT_DAMAGE = 20;
     private static final int DEFAULT_RANGE = 88;
     private static final int COOLDOWN_FRAMES = 24;
@@ -23,11 +19,7 @@ public class LongSword {
         this.range = DEFAULT_RANGE;
     }
 
-    /**
-     * โจมตีหนึ่งครั้งตามคำสั่งของผู้เล่น
-     * ศัตรูแต่ละตัวรับ damage ได้ครั้งเดียวต่อการโจมตีหนึ่งครั้ง แต่ตีโดนหลายตัวพร้อมกันได้
-     * ถ้ายังติด cooldown อยู่ การคลิกครั้งนั้นจะไม่มีผล
-     */
+    /** ฟันหนึ่งครั้ง โดนได้หลายตัว ไม่มีผลถ้ายังติด cooldown */
     public void attack(Player player, List<Enemy> enemies) {
         if (cooldownFrames > 0) {
             return;
@@ -42,17 +34,13 @@ public class LongSword {
             }
             if (checkHit(player, enemy)) {
                 enemy.takeDamage(damage);
-                // ผีกระเด็นไปตามทิศที่ฟัน (ถ้าตายจากดาบนี้ applyKnockback จะไม่ทำอะไร)
+                // ผีกระเด็นไปตามทิศที่ฟัน
                 enemy.applyKnockback(player.getFacing());
             }
         }
     }
 
-    /**
-     * ตรวจว่าศัตรูอยู่ในพื้นที่โจมตีหรือไม่
-     * เงื่อนไข: ดาบเอื้อมถึงตัวศัตรู (range + ครึ่งตัวศัตรู วัดจากจุดกลาง) และศัตรูอยู่ในกรวย 90 องศา
-     * (±45 องศา) ตามทิศที่หัน โดยผ่อนขอบกรวยให้ครึ่งตัวศัตรู เพื่อให้ผีที่ตัวคาบเกี่ยวขอบกรวยนับว่าโดน
-     */
+    /** ตรวจว่าศัตรูอยู่ในระยะและในกรวยดาบหรือไม่ */
     private boolean checkHit(Player player, Enemy enemy) {
         double playerCenterX = player.getX() + Player.getSize() / 2.0;
         double playerCenterY = player.getY() + Player.getSize() / 2.0;
@@ -62,23 +50,18 @@ public class LongSword {
         double dx = enemyCenterX - playerCenterX;
         double dy = enemyCenterY - playerCenterY;
 
-        // อยู่นอกระยะดาบ: วัดถึงตัวผี ไม่ใช่จุดกลาง จึงบวกครึ่งตัวผีเข้าไป
-        // (ผีตัวกว้าง 72 px ที่ตัวทับรอยฟัน จุดกลางอาจอยู่ไกลกว่า range)
+        // นอกระยะดาบ (วัดถึงขอบตัวผี จึงบวกครึ่งตัว)
         double reach = range + Enemy.getSize() / 2.0;
         if (Math.hypot(dx, dy) > reach) {
             return false;
         }
 
-        // ศัตรูที่เดินมาซ้อนทับตัว Player ถือว่าอยู่ในระยะดาบเสมอ
-        // ไม่ต้องสนทิศ เพราะเมื่อติดตัวกันแล้วผู้เล่นควรฟันออกได้
+        // ศัตรูที่ทับตัว Player โดนเสมอไม่ว่าหันทางไหน
         if (isOverlappingPlayer(player, enemy)) {
             return true;
         }
 
-        // ตัดเหลือกรวย 90 องศาด้านหน้า (แกน y ของหน้าจอชี้ลง)
-        // ระยะตามแกนที่หันต้องไม่น้อยกว่าระยะตามแกนขวาง จึงจะอยู่ในมุม ±45 องศา
-        // บวก slack ครึ่งตัวผี ให้ผีที่ตัวคาบเกี่ยวขอบกรวยนับว่าโดน
-        // แต่ผีที่ยืนชิดด้านข้างพอดี (เช่น dx = -72, dy = 0 ตอนหัน UP) ยังไม่โดน เพราะ 72 > 0 + 36
+        // กรวย ±45 องศา ผ่อนขอบด้วย slack ครึ่งตัวผี
         double slack = Enemy.getSize() / 2.0;
         switch (player.getFacing()) {
             case UP:
@@ -94,7 +77,6 @@ public class LongSword {
         }
     }
 
-    /** กล่องของ Player กับศัตรูทับกันอยู่หรือไม่ */
     private boolean isOverlappingPlayer(Player player, Enemy enemy) {
         return enemy.getX() < player.getX() + Player.getSize()
                 && player.getX() < enemy.getX() + Enemy.getSize()
@@ -102,7 +84,7 @@ public class LongSword {
                 && player.getY() < enemy.getY() + Enemy.getSize();
     }
 
-    /** นับถอยหลัง cooldown หนึ่งเฟรม (Game เรียกทุกเฟรม) */
+    /** นับถอยหลัง cooldown หนึ่งเฟรม */
     public void tick() {
         if (cooldownFrames > 0) {
             cooldownFrames--;

@@ -2,7 +2,7 @@ package ashinandflower;
 
 public final class WanderingGhost extends Enemy {
 
-    // Provisional balance values.
+    // ค่า Balance ชั่วคราว
     private static final int HP = 45;
     private static final int DAMAGE = 8;
     private static final double SPEED = 1.5;
@@ -18,7 +18,7 @@ public final class WanderingGhost extends Enemy {
         tickEffects();
         if (isKnockedBack()) {
             stepKnockback();
-            return;              // ระหว่างกระเด็น ไม่เดินเข้าหาและไม่ทำ contact damage
+            return;              // ระหว่างกระเด็นไม่เดินและไม่ทำดาเมจ
         }
         if (isDefeated() || player == null || player.isDead()) {
             return;
