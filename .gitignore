@@ -1,2 +1,5 @@
 bin/
 *.bak
+_project-notes/
+AshinAndFlower/class-diagram.puml
+_backup/

@@ -13,25 +13,25 @@ import javax.sound.sampled.Clip;
 /** โหลดและเก็บรูป ฟอนต์ และเสียงทั้งหมดของเกมจากโฟลเดอร์ res */
 public class AssetLoader {
 
-    // ภาพเดียวใช้ร่วมกันทุกหน้าจอเมนู
+    // หน้าจอเมนู
     private final BufferedImage menuBackground;
-    // ฉากของแต่ละ Level ใช้ index 1 ถึง levelCount (ช่อง 0 ว่าง)
+    // ฉากของแต่ละ Level
     private final BufferedImage[] levelBackgrounds;
-    // sprite ของ Player แยกตามทิศ (index = Direction.ordinal())
+    // sprite ของ Player
     private final BufferedImage[] playerSprites = new BufferedImage[Direction.values().length];
     private final BufferedImage wanderingGhostSprite;
     private final BufferedImage shadowGhostSprite;
     private final BufferedImage spiritGuardianSprite;
     private final BufferedImage flowerNormalSprite;
     private final BufferedImage flowerSpiritSprite;
-    // รูปปุ่มที่มีข้อความอยู่ในรูปแล้ว
+    // รูปปุ่ม
     private final BufferedImage buttonPlay;
     private final BufferedImage buttonRetry;
     private final BufferedImage buttonMenu;
-    // ฟอนต์ต้นแบบ ใช้ deriveFont ตอนเรียกใช้
+    // ฟอนต์
     private Font pixelFont;
 
-    // เพลงพื้นหลัง (null ถ้าโหลดไม่ได้)
+    // เพลงพื้นหลัง
     private Clip bgmClip;
 
     /** โหลดไฟล์ทั้งหมด levelCount คือจำนวนฉาก Level */
