@@ -44,6 +44,6 @@ AshinAndFlower/
 ## Credits
 
 - ฟอนต์ Press Start 2P — SIL Open Font License (ดู `res/fonts/OFL.txt`)
-- เพลง — Freesound #632109 "cinematic ambient" โดย bassmanjourney
-
-License: ___
+- เพลง — "Cinematic Ambient ,Bart.wav" โดย BassmanJourney\
+  https://freesound.org/people/BassmanJourney/sounds/632109/\
+  License: Creative Commons 0 (CC0)
