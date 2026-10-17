@@ -1,6 +1,9 @@
 {
-    "java.project.sourcePaths": ["src", "res"],
+    "java.project.sourcePaths": ["src"],
     "java.project.outputPath": "bin",
     "java.project.referencedLibraries": [],
-    "files.encoding": "utf8"
+    "files.encoding": "utf8",
+    "code-runner.executorMap": {
+        "java": "cd $dir; cd ..\\..; javac -encoding UTF-8 -d bin src\\ashinandflower\\*.java; if ($?) { java -cp bin ashinandflower.Game }"
+    }
 }
